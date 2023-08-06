@@ -47,7 +47,7 @@ def page_not_found(request: Request, exc: HTTPException):
 
 @app.get(path="/favicon.ico", response_class=FileResponse, include_in_schema=False)
 async def icon():
-    return FileResponse("static\\favicon.ico")
+    return FileResponse("static/favicon.ico")
 
 
 if __name__ == "__main__":
