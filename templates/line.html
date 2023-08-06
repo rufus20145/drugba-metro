@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ line.name }} линия</title>
+    <link rel="stylesheet" href="/static/css/main.css" />
+  </head>
+
+  <body>
+    <h1>{{ line.name }} линия</h1>
+    <h2 style="font-weight: normal; margin-bottom: 20px;">Повышающий коэффициент за сбор всех станций линии: {{ line.full_line_coef }}</h2>
+    <table class="ta-center tab-center">
+      <tr>
+        <th>Название станции</th>
+        <th>Текущий владелец</th>
+        <th>Цена</th>
+      </tr>
+      {% for station in line.stations %}
+        <tr>
+          <td>{{ station.name }}</td>
+          {% if station.owner_id %}
+            <td>{{ station.owner_id }}</td>
+          {% else %}
+            <td>
+              <i>Пока не куплена</i>
+            </td>
+          {% endif %}
+
+          {% if station.price %}
+            <td>{{ station.price }} дружбанов</td>
+            {% elif station.initial_price %}
+            <td>{{ station.initial_price }} дружбанов</td>
+          {% else %}
+            <td>—</td>
+          {% endif %}
+        </tr>
+      {% endfor %}
+    </table>
+
+    <a href="/"><button style="margin-top: 40px; display: flex" class="ta-center tab-center">На главную</button></a>
+  </body>
+</html>

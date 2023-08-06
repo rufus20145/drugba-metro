@@ -1,0 +1,29 @@
+.logo {
+    max-width: 760px;
+}
+
+h1 {
+    font-size: 4em;
+}
+
+h2 {
+    font-size: 3em;
+}
+
+.line-list {
+    column-count: 2;
+    column-gap: 20px;
+}
+
+.two-column-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.two-column-list li {
+    width: 50%;
+    text-align: left;
+    padding-left: 2em;
+    margin: 0;
+}

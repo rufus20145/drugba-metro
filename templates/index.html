@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Главная страница</title>
+    <link rel="stylesheet" href="/static/css/main.css" />
+
+    <link rel="stylesheet" media="screen and (max-width: 600px)" href="/static/css/small.css" />
+    <link rel="stylesheet" media="screen and (min-width: 600px)" href="/static/css/large.css" />
+
+    <style>
+      td {
+        height: 50px;
+        width: 300px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="ta-center">
+      <img class="logo" src="/static/images/logo.png" alt="Логотип ДОЛ «Дружба»" />
+    </div>
+    <h1 style="margin-bottom: 20px;">Схема метрополитена «Дружба»</h1>
+    <div class="ta-center" style="margin-bottom: 40px;">
+      <a class="map" href="/static/images/map.jpg" title="Открыть схему в новой вкладке" target="_blank"><img class="image map" id="metroMap" src="/static/images/map.jpg" alt="Схема метрополитена «Дружба»" /></a>
+    </div>
+
+    <h2>Стоимость станций</h2>
+    <h3 style="font-weight: normal;">Для отображения выберите линию метро.</h3>
+    <h3 style="font-weight: normal; margin-bottom: 20px;">В скобках указано количество доступных к покупке станций.</h3>
+    <div class="line-list ta-center">
+      <ul class="two-column-list">
+        {% for line in lines %}
+          <li>
+            <a href="/line/{{ line.number }}">{{ line.name }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <h2>Коэффициенты за покупку всех станций одной линии</h2>
+    <h3 style="font-weight: normal; margin-bottom: 40px;">При покупке всех станций, принадлежащих одной линии, их стоимость умножается на данных коэффициент.</h3>
+    <table class="ta-center tab-center" id="cssTable" border="1">
+      <tr>
+        <th style="font-size: 150%;">Название линии</th>
+        <th style="font-size: 150%;">Коэффициент</th>
+      </tr>
+      {% for line in lines %}
+        <tr>
+          <td>{{ line.name }}</td>
+          <td>{{ line.full_line_coef }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+  </body>
+</html>

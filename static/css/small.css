@@ -1,0 +1,14 @@
+h1,
+h2,
+h3 {
+    max-width: 80%;
+    margin: auto;
+}
+
+.logo {
+    max-width: 240px;
+}
+
+.line-list {
+    column-count: 1;
+}
