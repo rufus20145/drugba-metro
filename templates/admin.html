@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Профиль</title>
+  </head>
+
+  <body>
+    <h1>Админ {{ user.username }}</h1>
+
+    <form action="/admin/change-station-owner" method="post">
+      <label for="station">Станция:</label>
+      <select name="station" id="station">
+        {% for station in stations %}
+          <option value="{{ station.id }}">{{ station.line.number }} {{ station.name }}</option>
+        {% endfor %}
+      </select>
+      <label for="squad">Новый владелец:</label>
+      <select name="squad" id="squad">
+        {% for squad in squads %}
+          <option value="{{ squad.id }}">{{ squad.name }} отряд</option>
+        {% endfor %}
+      </select>
+
+      <input type="submit" value="Изменить" />
+    </form>
+
+    <a href="/logout"><button>Выйти</button></a>
+  </body>
+</html>
