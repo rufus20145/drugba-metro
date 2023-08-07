@@ -3,36 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Регистрация</title>
+    <title>Аутентификация</title>
     <script>
       function togglePasswordVisibility() {
         var passwordInput = document.getElementById('password')
         passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password'
       }
-      
-      function toggleOptionalFields() {
-        var roleSelect = document.getElementById('role')
-        var pioneerCounselorFields = document.getElementById('pioneerCounselorFields')
-        var squadNumberInput = document.getElementById('squadNumber')
-      
-        if (roleSelect.value === 'counselor' || roleSelect.value === 'pioneer') {
-          pioneerCounselorFields.style.display = 'block'
-          squadNumberInput.required = true
-        } else {
-          pioneerCounselorFields.style.display = 'none'
-          squadNumberInput.required = false
-        }
-      }
-      
       function sendRequest() {
         event.preventDefault()
       
-        var form = new FormData(document.forms.register)
+        var form = new FormData(document.forms.auth)
         var xhr = new XMLHttpRequest()
-        xhr.open('POST', '/reg')
+        xhr.open('POST', '/auth')
         xhr.onreadystatechange = function () {
           if (xhr.readyState === XMLHttpRequest.DONE) {
-            if (xhr.status == 201) {
+            if (xhr.status == 200) {
               location.href = '/profile'
             } else if (xhr.status == 401) {
               var errorField = document.getElementById('errorField')
@@ -48,8 +33,8 @@
   </head>
 
   <body>
-    <h2>Регистрация</h2>
-    <form name="register" onsubmit="sendRequest();">
+    <h2>Вход в систему</h2>
+    <form name="auth" onsubmit="sendRequest();">
       <label for="username">Имя пользователя:</label>
       <input type="text" id="username" name="username" required />
       <br />
@@ -57,19 +42,10 @@
       <input type="password" id="password" name="password" required />
       <button type="button" onclick="togglePasswordVisibility()">Показать пароль</button>
       <br />
-      <label for="role">Роль:</label>
-      <select id="role" name="role" onchange="toggleOptionalFields();">
-        <!-- <option value="counselor">Машинист</option> -->
-        <option value="pioneer" selected>Пассажир</option>
-      </select>
-      <div id="pioneerCounselorFields" style="display: block;">
-        <label for="squadNumber">Номер состава:</label>
-        <input type="number" id="squadNumber" name="squadNumber" />
-      </div>
-      <input type="submit" value="Зарегистрироваться" />
+      <input type="submit" value="Войти" />
     </form>
     <div id="errorField" style="display: none;"></div>
 
-    <a href="/login"><button>Войти</button></a>
+    <a href="/reg"><button>Зарегистрироваться</button></a>
   </body>
 </html>
