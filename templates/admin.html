@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Профиль</title>
     <script>
-      function sendRequest() {
+      function chngOwner() {
         event.preventDefault()
       
-        var messageField = document.getElementById('messageField')
+        var messageField = document.getElementById('ownerField')
         var form = new FormData(document.forms.changeOwner)
         var xhr = new XMLHttpRequest()
         xhr.open('POST', '/admin/change-station-owner')
@@ -27,13 +27,36 @@
         }
         xhr.send(form)
       }
+      
+      function chngBalance() {
+        event.preventDefault()
+      
+        var messageField = document.getElementById('balanceField')
+        var form = new FormData(document.forms.changeBalance)
+        var xhr = new XMLHttpRequest()
+        xhr.open('POST', '/admin/change-balance')
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === XMLHttpRequest.DONE) {
+            if (xhr.status == 201) {
+              messageField.style.display = 'block'
+              messageField.style.color = 'green'
+              messageField.innerHTML = JSON.parse(xhr.responseText).message
+            } else if (xhr.status == 401 || xhr.status == 400) {
+              messageField.style.display = 'block'
+              messageField.style.color = 'red'
+              messageField.innerHTML = JSON.parse(xhr.responseText).message
+            }
+          }
+        }
+        xhr.send(form)
+      }
     </script>
   </head>
 
   <body>
     <h1>Админ {{ user.username }}</h1>
 
-    <form name="changeOwner" onsubmit="sendRequest()">
+    <form name="changeOwner" onsubmit="chngOwner()">
       <label for="station">Станция:</label>
       <select name="station" id="station">
         {% for station in stations %}
@@ -50,7 +73,27 @@
       <input type="submit" value="Изменить" />
     </form>
 
-    <div id="messageField"></div>
+    <div id="ownerField"></div>
+
+    <br />
+    <br />
+
+    <form name="changeBalance" onsubmit="chngBalance()">
+      <label for="squad">Номер отряда:</label>
+      <select name="squad" id="squad" required>
+        <option hidden disabled selected value>выберите отряд</option>
+        {% for squad in squads %}
+          <option value="{{ squad.id }}">{{ squad.name }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="new_balance">Новый баланс:</label>
+      <input type="number" name="new_balance" id="new_balance" required />
+
+      <input type="submit" value="Установить" />
+    </form>
+
+    <div id="balanceField"></div>
 
     <a href="/logout"><button>Выйти</button></a>
   </body>

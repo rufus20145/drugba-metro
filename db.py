@@ -256,6 +256,15 @@ class Alchemy:
                 session.commit()
             return token.token
 
+    def change_balance(
+        self, squad_number: int, new_balance: int, session: so.Session
+    ) -> None:
+        query = sa.Select(Squad).where(Squad.name == str(squad_number))
+        squad: Squad = session.scalars(query).one_or_none()
+        squad.wallet.balance = new_balance
+        session.merge(squad)
+        session.commit()
+
 
 # тестовые прогоны алхимии
 if __name__ == "__main__":
