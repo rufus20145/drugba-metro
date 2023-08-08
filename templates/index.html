@@ -40,7 +40,7 @@
 
     <h2>Коэффициенты за покупку всех станций одной линии</h2>
     <h3 style="font-weight: normal; margin-bottom: 40px;">При покупке всех станций, принадлежащих одной линии, их стоимость умножается на данных коэффициент.</h3>
-    <table class="ta-center tab-center" id="cssTable" border="1" style="margin-bottom: 80px;">
+    <table class="ta-center tab-center" id="cssTable" border="1" style="margin-bottom: 40px;">
       <tr>
         <th style="font-size: 150%;">Название линии</th>
         <th style="font-size: 150%;">Коэффициент</th>
@@ -49,6 +49,21 @@
         <tr>
           <td>{{ line.name }}</td>
           <td>{{ line.full_line_coef }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+
+    <h2>Балансы отрядов</h2>
+    <h3 style="font-weight: normal; margin-bottom: 40px;">На данный момент коэффициент за сбор всей линии не учитывается.</h3>
+    <table class="ta-center tab-center" border="1" style="margin-bottom: 80px;">
+      <tr>
+        <th style="font-size: 150%;">Отряд</th>
+        <th style="font-size: 150%;">Баланс</th>
+      </tr>
+      {% for squad in squads %}
+        <tr>
+          <td>{{ squad.name }}</td>
+          <td>{{ squad.wallet.balance }}</td>
         </tr>
       {% endfor %}
     </table>

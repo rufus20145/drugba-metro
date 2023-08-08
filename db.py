@@ -4,6 +4,7 @@ import random
 from typing import List, Optional
 import sqlalchemy as sa
 import sqlalchemy.orm as so
+from sqlalchemy.dialects.mysql import INTEGER
 
 
 class Base(so.DeclarativeBase):
@@ -50,6 +51,34 @@ class Squad(Base):
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
     name: so.Mapped[str] = so.mapped_column(sa.String(100))
     stations: so.Mapped[List["Station"]] = so.relationship(back_populates="owner")
+    wallet: so.Mapped["Wallet"] = so.relationship(back_populates="squad")
+
+
+class Wallet(Base):
+    __tablename__ = "wallets"
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    squad_id: so.Mapped[int] = so.mapped_column(
+        INTEGER(unsigned=True), sa.ForeignKey("squads.id")
+    )
+    squad: so.Mapped["Squad"] = so.relationship(back_populates="wallet")
+    balance: so.Mapped[int] = so.mapped_column(sa.Integer)
+    transactions: so.Mapped[List["Transaction"]] = so.relationship()
+
+    def __init__(self, squad_id: int):
+        self.squad_id = squad_id
+        self.balance = 10000
+
+
+class Transaction(Base):
+    __tablename__ = "transactions"
+
+    id: so.Mapped[int] = so.mapped_column(primary_key=True)
+    date: so.Mapped[dt.datetime] = so.mapped_column(sa.DateTime)
+    wallet_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("wallets.id"))
+    amount: so.Mapped[int] = so.mapped_column(sa.Integer)
+    made_by_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("users.id"))
+    wallet: so.Mapped["Wallet"] = so.relationship(back_populates="transactions")
 
 
 class User(Base):
@@ -157,18 +186,6 @@ class Token(Base):
 
     def _hash(self, string: str) -> str:
         return hashlib.sha256(string.encode("utf-8")).hexdigest()
-
-
-class RegCode(Base):
-    __tablename__ = "reg_codes"
-
-    id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True)
-    created_by: so.Mapped[int] = so.mapped_column(sa.ForeignKey("users.id"))
-    code: so.Mapped[int] = so.mapped_column(sa.Integer, nullable=False)
-
-    def __init__(self, created_by: User):
-        self.created_by = created_by.id
-        self.code = random.randint(1000, 9999)
 
 
 class Alchemy:

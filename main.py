@@ -5,7 +5,7 @@ from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from db import Alchemy, Counselor, RegCode, Pioneer
+from db import Alchemy, Counselor, Pioneer
 
 url = "mysql+pymysql://root:123456789@localhost:3306/metro"
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -18,8 +18,9 @@ alchemy = Alchemy(url)
 def root(request: Request):
     with alchemy.get_session() as session:
         lines = alchemy.get_all_lines(session)
+        squads = alchemy.get_all_squads(session)
         return templates.TemplateResponse(
-            "index.html", {"request": request, "lines": lines}
+            "index.html", {"request": request, "lines": lines, "squads": squads}
         )
 
 
@@ -147,21 +148,6 @@ def logout(request: Request):
     response = RedirectResponse("/login", status_code=302)
     response.delete_cookie("token")
     return response
-
-
-@app.get(path="/methods/code", response_class=JSONResponse)
-def methods_code(request: Request):
-    token = request.cookies.get("token")
-    if not token:
-        return RedirectResponse("/login", status_code=302)
-    user = alchemy.get_user_by_token(token)
-    if user.role == "admin" or user.role == "methodist":
-        with alchemy.get_session() as session:
-            code = RegCode(user)
-            session.add(code)
-            session.commit()
-            return JSONResponse(status_code=201, content={"code": code.code})
-    return JSONResponse(status_code=401, content={"message": "Нет доступа"})
 
 
 @app.post(path="/admin/change-station-owner", response_class=JSONResponse)
