@@ -170,7 +170,7 @@ def change_station_owner(
 ):
     with alchemy.get_session() as session:
         alchemy.change_station_owner(station, squad, session)
-        return JSONResponse(status_code=201, content={"result": "OK"})
+        return JSONResponse(status_code=201, content={"message": "Владелец изменен"})
 
 
 # ======================================================================================

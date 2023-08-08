@@ -205,6 +205,8 @@ class Alchemy:
     def change_station_owner(
         self, station_id: int, new_owner_id: int, session: so.Session
     ) -> None:
+        if new_owner_id == -1:
+            new_owner_id = None
         query = (
             sa.update(Station)
             .where(Station.id == station_id)

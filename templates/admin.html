@@ -4,12 +4,36 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Профиль</title>
+    <script>
+      function sendRequest() {
+        event.preventDefault()
+      
+        var messageField = document.getElementById('messageField')
+        var form = new FormData(document.forms.changeOwner)
+        var xhr = new XMLHttpRequest()
+        xhr.open('POST', '/admin/change-station-owner')
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === XMLHttpRequest.DONE) {
+            if (xhr.status == 201) {
+              messageField.style.display = 'block'
+              messageField.style.color = 'green'
+              messageField.innerHTML = JSON.parse(xhr.responseText).message
+            } else if (xhr.status == 401) {
+              messageField.style.display = 'block'
+              messageField.style.color = 'red'
+              messageField.innerHTML = JSON.parse(xhr.responseText).message
+            }
+          }
+        }
+        xhr.send(form)
+      }
+    </script>
   </head>
 
   <body>
     <h1>Админ {{ user.username }}</h1>
 
-    <form action="/admin/change-station-owner" method="post">
+    <form name="changeOwner" onsubmit="sendRequest()">
       <label for="station">Станция:</label>
       <select name="station" id="station">
         {% for station in stations %}
@@ -18,13 +42,15 @@
       </select>
       <label for="squad">Новый владелец:</label>
       <select name="squad" id="squad">
+        <option value="-1">Нет владельца</option>
         {% for squad in squads %}
           <option value="{{ squad.id }}">{{ squad.name }} отряд</option>
         {% endfor %}
       </select>
-
       <input type="submit" value="Изменить" />
     </form>
+
+    <div id="messageField"></div>
 
     <a href="/logout"><button>Выйти</button></a>
   </body>
