@@ -166,8 +166,11 @@ def methods_code(request: Request):
 
 @app.post(path="/admin/change-station-owner", response_class=JSONResponse)
 def change_station_owner(
-    station: Annotated[int, Form()], squad: Annotated[int, Form()]
+    request: Request, station: Annotated[int, Form()], squad: Annotated[int, Form()]
 ):
+    token = request.cookies.get("token")
+    if not token:
+        return JSONResponse(status_code=401, content={"message": "Нет доступа"})
     with alchemy.get_session() as session:
         alchemy.change_station_owner(station, squad, session)
         return JSONResponse(status_code=201, content={"message": "Владелец изменен"})
