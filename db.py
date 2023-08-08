@@ -10,18 +10,6 @@ class Base(so.DeclarativeBase):
     pass
 
 
-class OperationalInfo(Base):
-    __tablename__ = "operational_info"
-
-    id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True)
-    name: so.Mapped[str] = so.mapped_column(sa.String(100))
-    data: so.Mapped[str] = so.mapped_column(sa.String(500))
-
-    def __init__(self, name: str, data: str):
-        self.name = name
-        self.data = data
-
-
 class Line(Base):
     __tablename__ = "lines"
 
@@ -191,11 +179,6 @@ class Alchemy:
 
     def get_session(self) -> so.Session:
         return self._session_factory()
-
-    def get_oper_info(self, name: str, session: so.Session) -> str:
-        query = sa.select(OperationalInfo).filter_by(name=name)
-        result = session.scalars(query).one_or_none()
-        return result.data
 
     def get_line_by_number(self, number: str, session: so.Session) -> "Line":
         query = sa.select(Line).filter_by(number=number)
