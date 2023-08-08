@@ -5,7 +5,7 @@ from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from db import Alchemy, Counselor, Pioneer
+from db import Alchemy, Counselor, Pioneer, LogMessage
 
 url = "mysql+pymysql://root:123456789@localhost:3306/metro"
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
@@ -158,7 +158,13 @@ def change_station_owner(
     if not token:
         return JSONResponse(status_code=401, content={"message": "Нет доступа"})
     with alchemy.get_session() as session:
-        alchemy.change_station_owner(station, squad, session)
+        old_owner = alchemy.change_station_owner(station, squad, session)
+        log_message = LogMessage(
+            username=alchemy.get_user_by_token(token).username,
+            message=f"Changed owner of station {station} from {old_owner} to {squad}",
+        )
+        session.add(log_message)
+        session.commit()
         return JSONResponse(status_code=201, content={"message": "Владелец изменен"})
 
 
@@ -174,7 +180,13 @@ def change_balance(
             status_code=400, content={"message": "Неверный номер отряда или баланс"}
         )
     with alchemy.get_session() as session:
-        alchemy.change_balance(squad, new_balance, session)
+        old_balance = alchemy.change_balance(squad, new_balance, session)
+        log_message = LogMessage(
+            username=alchemy.get_user_by_token(token).username,
+            message=f"Changed balance of squad {squad} from {old_balance} to {new_balance}",
+        )
+        session.add(log_message)
+        session.commit()
         return JSONResponse(status_code=201, content={"message": "Баланс изменен"})
 
 

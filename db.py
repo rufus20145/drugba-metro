@@ -188,6 +188,20 @@ class Token(Base):
         return hashlib.sha256(string.encode("utf-8")).hexdigest()
 
 
+class LogMessage(Base):
+    __tablename__ = "log_messages"
+
+    id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True)
+    username: so.Mapped[str] = so.mapped_column(sa.String(150))
+    message: so.Mapped[str] = so.mapped_column(sa.String(1000))
+    datetime: so.Mapped[dt.datetime] = so.mapped_column(sa.DateTime, default=dt.datetime.now())
+
+    def __init__(self, username: str, message: str):
+            self.username = username
+            self.message = message
+            self.datetime = dt.datetime.now()
+
+
 class Alchemy:
     def __init__(self, url: str):
         self._engine = sa.create_engine(url)
@@ -204,9 +218,12 @@ class Alchemy:
 
     def change_station_owner(
         self, station_id: int, new_owner_id: int, session: so.Session
-    ) -> None:
+    ) -> int:
         if new_owner_id == -1:
             new_owner_id = None
+
+        query = sa.select(Station).where(Station.id == station_id)
+        old_owner_id = session.scalars(query).one_or_none().owner_id
         query = (
             sa.update(Station)
             .where(Station.id == station_id)
@@ -214,6 +231,7 @@ class Alchemy:
         )
         session.execute(query)
         session.commit()
+        return old_owner_id
 
     def get_all_lines(self, session: so.Session) -> List["Line"]:
         query = sa.select(Line)
@@ -258,12 +276,14 @@ class Alchemy:
 
     def change_balance(
         self, squad_number: int, new_balance: int, session: so.Session
-    ) -> None:
+    ) -> int:
         query = sa.Select(Squad).where(Squad.name == str(squad_number))
         squad: Squad = session.scalars(query).one_or_none()
+        old_balance = squad.wallet.balance
         squad.wallet.balance = new_balance
         session.merge(squad)
         session.commit()
+        return old_balance
 
 
 # тестовые прогоны алхимии
