@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 from db import Alchemy, Counselor, RegCode, Pioneer
 
 url = "mysql+pymysql://root:123456789@localhost:3306/metro"
-app = FastAPI(docs_url=None, redoc_url=None)
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 alchemy = Alchemy(url)
