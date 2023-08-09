@@ -178,13 +178,21 @@ def change_station_owner(
         return JSONResponse(status_code=401, content={"message": "Нет доступа"})
     with alchemy.get_session() as session:
         old_owner = alchemy.change_station_owner(station, squad, session)
+        station_price = alchemy.get_station_price(station, session)
         log_message = LogMessage(
             username=alchemy.get_user_by_token(token).username,
             message=f"Changed owner of station {station} from {old_owner} to {squad}",
         )
         session.add(log_message)
         session.commit()
-        return JSONResponse(status_code=201, content={"message": "Владелец изменен"})
+        return JSONResponse(
+            status_code=201,
+            content={
+                "message": f"Владелец изменен. Стоимость станции {station_price}",
+                "price": station_price,
+                "station_name": alchemy.get_station_name(station, session),
+            },
+        )
 
 
 @app.post(path="/admin/add-balance", response_class=JSONResponse)
@@ -197,15 +205,11 @@ def add_balance(
     token = request.cookies.get("token")
     if not token:
         return JSONResponse(status_code=401, content={"message": "Нет доступа"})
-    if squad > 18 or squad < 1 or amount < 0:
-        return JSONResponse(
-            status_code=400, content={"message": "Неверный номер отряда или баланс"}
-        )
     with alchemy.get_session() as session:
         old_balance = alchemy.add_balance(squad, amount, session)
         log_message = LogMessage(
             username=alchemy.get_user_by_token(token).username,
-            message=f"Added {amount} to balance of squad {squad}. Old balance: {old_balance}. New balance: {old_balance + amount}. Reason: {reason}",
+            message=f"Changed balance of squad {squad} by {amount}. Old balance: {old_balance}. New balance: {old_balance + amount}. Reason: {reason}",
         )
         session.add(log_message)
         session.commit()

@@ -238,6 +238,16 @@ class Alchemy:
         session.commit()
         return old_owner_id
 
+    def get_station_name(self, station_id: int, session: so.Session) -> str:
+        query = sa.select(Station).where(Station.id == station_id)
+        station = session.scalars(query).one_or_none()
+        return station.name
+
+    def get_station_price(self, station_id: int, session: so.Session) -> int:
+        query = sa.select(Station).where(Station.id == station_id)
+        station = session.scalars(query).one_or_none()
+        return station.initial_price
+
     def get_all_lines(self, session: so.Session) -> List["Line"]:
         query = sa.select(Line)
         lines = session.scalars(query).all()
