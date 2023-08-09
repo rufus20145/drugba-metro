@@ -65,7 +65,9 @@
       </tr>
       {% for squad in squads %}
         <tr>
-          <td>{{ squad.name }}</td>
+          <td>
+            <a href="/squad/{{ squad.name }}">{{ squad.name }}</a>
+          </td>
           <td>{{ '%0.0f'|format(squad.wallet.balance / 1000) }} 000</td>
         </tr>
       {% endfor %}
