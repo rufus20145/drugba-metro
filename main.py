@@ -22,6 +22,14 @@ def root(request: Request):
         return templates.TemplateResponse(
             "index.html", {"request": request, "lines": lines, "squads": squads}
         )
+    
+@app.get("/bought-stations", response_class=HTMLResponse)
+def bought_stations(request: Request):
+    with alchemy.get_session() as session:
+        bought_stations = alchemy.get_bought_stations(session)
+        return templates.TemplateResponse(
+            "bought-stations.html", {"request": request, "bought_stations": bought_stations}
+        )
 
 
 @app.get(path="/line/{number}", response_class=HTMLResponse)

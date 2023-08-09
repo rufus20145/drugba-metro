@@ -283,6 +283,11 @@ class Alchemy:
         session.commit()
         return old_balance
 
+    def get_bought_stations(self, session: so.Session) -> List["Station"]:
+        query = sa.select(Station).where(Station.owner_id != None)
+        stations = session.scalars(query).all()
+        return stations
+
 
 # тестовые прогоны алхимии
 if __name__ == "__main__":
