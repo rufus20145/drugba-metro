@@ -170,7 +170,10 @@ def change_station_owner(
 
 @app.post(path="/admin/add-balance", response_class=JSONResponse)
 def add_balance(
-    request: Request, squad: Annotated[int, Form()], amount: Annotated[int, Form()]
+    request: Request,
+    squad: Annotated[int, Form()],
+    amount: Annotated[int, Form()],
+    reason: Annotated[str, Form()],
 ):
     token = request.cookies.get("token")
     if not token:
@@ -183,7 +186,7 @@ def add_balance(
         old_balance = alchemy.add_balance(squad, amount, session)
         log_message = LogMessage(
             username=alchemy.get_user_by_token(token).username,
-            message=f"Added {amount} to balance of squad {squad}. Old balance: {old_balance}. New balance: {old_balance + amount}",
+            message=f"Added {amount} to balance of squad {squad}. Old balance: {old_balance}. New balance: {old_balance + amount}. Reason: {reason}",
         )
         session.add(log_message)
         session.commit()
