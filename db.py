@@ -194,12 +194,12 @@ class LogMessage(Base):
     id: so.Mapped[int] = so.mapped_column(sa.Integer, primary_key=True)
     username: so.Mapped[str] = so.mapped_column(sa.String(150))
     message: so.Mapped[str] = so.mapped_column(sa.String(1000))
-    datetime: so.Mapped[dt.datetime] = so.mapped_column(sa.DateTime, default=dt.datetime.now())
+    datetime: so.Mapped[dt.datetime] = so.mapped_column(sa.DateTime)
 
     def __init__(self, username: str, message: str):
-            self.username = username
-            self.message = message
-            self.datetime = dt.datetime.now()
+        self.username = username
+        self.message = message
+        self.datetime = dt.datetime.now()
 
 
 class Alchemy:
