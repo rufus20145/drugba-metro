@@ -274,17 +274,6 @@ class Alchemy:
                 session.commit()
             return token.token
 
-    def change_balance(
-        self, squad_number: int, new_balance: int, session: so.Session
-    ) -> int:
-        query = sa.Select(Squad).where(Squad.name == str(squad_number))
-        squad: Squad = session.scalars(query).one_or_none()
-        old_balance = squad.wallet.balance
-        squad.wallet.balance = new_balance
-        session.merge(squad)
-        session.commit()
-        return old_balance
-    
     def add_balance(self, squad_number: int, amount: int, session: so.Session) -> int:
         query = sa.Select(Squad).where(Squad.name == str(squad_number))
         squad: Squad = session.scalars(query).one_or_none()

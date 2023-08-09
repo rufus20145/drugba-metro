@@ -168,28 +168,6 @@ def change_station_owner(
         return JSONResponse(status_code=201, content={"message": "Владелец изменен"})
 
 
-@app.post(path="/admin/change-balance", response_class=JSONResponse)
-def change_balance(
-    request: Request, squad: Annotated[int, Form()], new_balance: Annotated[int, Form()]
-):
-    token = request.cookies.get("token")
-    if not token:
-        return JSONResponse(status_code=401, content={"message": "Нет доступа"})
-    if squad > 18 or squad < 1 or new_balance < 0:
-        return JSONResponse(
-            status_code=400, content={"message": "Неверный номер отряда или баланс"}
-        )
-    with alchemy.get_session() as session:
-        old_balance = alchemy.change_balance(squad, new_balance, session)
-        log_message = LogMessage(
-            username=alchemy.get_user_by_token(token).username,
-            message=f"Changed balance of squad {squad} from {old_balance} to {new_balance}",
-        )
-        session.add(log_message)
-        session.commit()
-        return JSONResponse(status_code=201, content={"message": "Баланс изменен"})
-
-
 @app.post(path="/admin/add-balance", response_class=JSONResponse)
 def add_balance(
     request: Request, squad: Annotated[int, Form()], amount: Annotated[int, Form()]
