@@ -13,11 +13,13 @@
       <tr>
         <th>Линия</th>
         <th>Название станции</th>
+        <th>Стоимость</th>
       </tr>
       {% for station in squad.stations %}
         <tr>
           <td>{{ station.line.number }}</td>
           <td>{{ station.name }}</td>
+          <td>{{ '{:,}'.format(station.initial_price).replace(',', ' ') }}</td>
         </tr>
       {% endfor %}
     </table>
