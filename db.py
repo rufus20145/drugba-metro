@@ -216,6 +216,11 @@ class Alchemy:
         line = session.scalars(query).one_or_none()
         return line
 
+    def get_squad_by_number(self, number: str, session: so.Session) -> "Squad":
+        query = sa.select(Squad).filter_by(name=number)
+        squad = session.scalars(query).one_or_none()
+        return squad
+
     def change_station_owner(
         self, station_id: int, new_owner_id: int, session: so.Session
     ) -> int:
