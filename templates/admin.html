@@ -50,6 +50,29 @@
         }
         xhr.send(form)
       }
+      
+      function adBalance() {
+        event.preventDefault()
+      
+        var messageField = document.getElementById('addField')
+        var form = new FormData(document.forms.addBalance)
+        var xhr = new XMLHttpRequest()
+        xhr.open('POST', '/admin/add-balance')
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === XMLHttpRequest.DONE) {
+            if (xhr.status == 201) {
+              messageField.style.display = 'block'
+              messageField.style.color = 'green'
+              messageField.innerHTML = JSON.parse(xhr.responseText).message
+            } else if (xhr.status == 401 || xhr.status == 400) {
+              messageField.style.display = 'block'
+              messageField.style.color = 'red'
+              messageField.innerHTML = JSON.parse(xhr.responseText).message
+            }
+          }
+        }
+        xhr.send(form)
+      }
     </script>
   </head>
 
@@ -94,6 +117,23 @@
     </form>
 
     <div id="balanceField"></div>
+    <br /><br />
+
+    <form name="addBalance" onsubmit="adBalance()">
+      <label for="squad">Номер отряда:</label>
+      <select name="squad" id="squad" required>
+        <option hidden disabled selected value>выберите отряд</option>
+        {% for squad in squads %}
+          <option value="{{ squad.id }}">{{ squad.name }}</option>
+        {% endfor %}
+      </select>
+
+      <label for="amount">Добавить:</label>
+      <input type="number" name="amount" id="amount" required />
+      <input type="submit" value="Применить" />
+    </form>
+
+    <div id="addField"></div>
 
     <a href="/logout"><button>Выйти</button></a>
   </body>

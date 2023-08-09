@@ -284,6 +284,15 @@ class Alchemy:
         session.merge(squad)
         session.commit()
         return old_balance
+    
+    def add_balance(self, squad_number: int, amount: int, session: so.Session) -> int:
+        query = sa.Select(Squad).where(Squad.name == str(squad_number))
+        squad: Squad = session.scalars(query).one_or_none()
+        old_balance = squad.wallet.balance
+        squad.wallet.balance += amount
+        session.merge(squad)
+        session.commit()
+        return old_balance
 
 
 # тестовые прогоны алхимии

@@ -190,6 +190,28 @@ def change_balance(
         return JSONResponse(status_code=201, content={"message": "Баланс изменен"})
 
 
+@app.post(path="/admin/add-balance", response_class=JSONResponse)
+def add_balance(
+    request: Request, squad: Annotated[int, Form()], amount: Annotated[int, Form()]
+):
+    token = request.cookies.get("token")
+    if not token:
+        return JSONResponse(status_code=401, content={"message": "Нет доступа"})
+    if squad > 18 or squad < 1 or amount < 0:
+        return JSONResponse(
+            status_code=400, content={"message": "Неверный номер отряда или баланс"}
+        )
+    with alchemy.get_session() as session:
+        old_balance = alchemy.add_balance(squad, amount, session)
+        log_message = LogMessage(
+            username=alchemy.get_user_by_token(token).username,
+            message=f"Added {amount} to balance of squad {squad}. Old balance: {old_balance}. New balance: {old_balance + amount}",
+        )
+        session.add(log_message)
+        session.commit()
+        return JSONResponse(status_code=201, content={"message": "Баланс изменен"})
+
+
 # ======================================================================================
 @app.exception_handler(HTTPException)
 @app.exception_handler(404)
