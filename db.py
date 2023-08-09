@@ -300,83 +300,64 @@ if __name__ == "__main__":
 
     alchemy = Alchemy(url)
     random_part_of_username = str(random.randint(100000, 999999))
-    from main import _hash
 
     with alchemy.get_session() as session:
-        # admin = Admin("admin" + random_part_of_username, "admin")
-        # methodist = Methodist("method" + random_part_of_username, "method", "молодежка")
-        # counselor = Counselor("counselor" + random_part_of_username, "counselor", 1)
-        # session.add_all([admin, methodist, counselor])
-        # session.commit()
-        # vera = Methodist("vera_misautova", _hash("LEoGZWBFjU5MOk2w"), "молодежка")
-        # dasha = Methodist("kamyshk", _hash("gLjdGdK13ZUwuKXO"), "старшие")
-        # danya = Methodist("n1ght_fever", _hash("r25oYbv75AqbJAdw"), "средние")
-        # sasha = Methodist("funtik_sandra", _hash("CmfgG5kylSwjciRg"), "младшие")
+        query = sa.select(Squad)
+        squads = session.scalars(query).all()
+        for squad in squads:
+            wallet = Wallet(squad.id)
+            session.add(wallet)
+            session.commit()
 
-        # session.add_all([vera, dasha, danya, sasha])
-        admin = Admin("rufus20145", _hash("sH7vFR1B1rCpd5oKm1SArLKJ"))
-        session.add(admin)
+        # обновление цен станций
+        # query = sa.select(Station)
+        # all_stations = session.scalars(query).all()
+        # for station in all_stations:
+        #     match station.initial_price:
+        #         case 60000:
+        #             station.initial_price = 100000
+        #         case 70000:
+        #             station.initial_price = 140000
+        #         case 100000:
+        #             station.initial_price = 170000
+        #         case 140000:
+        #             station.initial_price = 220000
+        #     session.merge(station)
+
+        # вывод списка линий по в правильном порядке
+        # query = sa.select(Line).order_by(Line.order_number)
+        # result = session.scalars(query).all()
+        # sum = 0
+        # for line in result:
+        #     sum += len(line.stations)
+        #     print(
+        #         "{0:4} {1:60} {2}".format(
+        #             line.number, line.name, str(len(line.stations))
+        #         )
+        #     )
+        # print(sum)
+
+        # удаление лишних переносов строк
+        # query2 = sa.select(Station)  # выбор линии
+        # result2 = session.scalars(query2).all()
+        # for station in result2:
+        #     # remove \n in the end of station.name and update in db
+        #     if station.name.endswith("\n"):
+        #         print(f"Удаляем перенос у станции: {station.name}")
+        #         input("Press any key to continue...")
+        #         station.name = station.name[:-1]
+        #         session.merge(station)
+
+        # вычисление коэффициентов для линий
+        # query = sa.select(Line).order_by(Line.order_number)
+        # result = session.scalars(query).all()
+        # for line in result:
+        #     line.full_line_coef = round(len(line.stations) / 7 + 0.2, 1)
+        #     print(
+        #         "{0:4} {1:60} {2:4} {3:4}".format(
+        #             line.number, line.name, len(line.stations), line.full_line_coef
+        #         )
+        #     )
+        #     session.merge(line)
+
         session.commit()
-
-    # вывод списка линий по в правильном порядке
-    # query = sa.select(Line).order_by(Line.order_number)
-    # result = session.scalars(query).all()
-    # sum = 0
-    # for line in result:
-    #     sum += len(line.stations)
-    #     print(
-    #         "{0:4} {1:60} {2}".format(
-    #             line.number, line.name, str(len(line.stations))
-    #         )
-    #     )
-    # print(sum)
-
-    # удаление лишних переносов строк
-    # query2 = sa.select(Station)  # выбор линии
-    # result2 = session.scalars(query2).all()
-    # for station in result2:
-    #     # remove \n in the end of station.name and update in db
-    #     if station.name.endswith("\n"):
-    #         print(f"Удаляем перенос у станции: {station.name}")
-    #         input("Press any key to continue...")
-    #         station.name = station.name[:-1]
-    #         session.merge(station)
-    #         session.commit()
-
-    # установка коэффициентов для линий
-    # query = sa.select(Line).order_by(Line.order_number)
-    # result = session.scalars(query).all()
-    # for line in result:
-    #     line.full_line_coef = round(len(line.stations) / 7 + 0.2, 1)
-    #     print(
-    #         "{0:4} {1:60} {2:4} {3:4}".format(
-    #             line.number, line.name, len(line.stations), line.full_line_coef
-    #         )
-    #     )
-    #     session.merge(line)
-    #     session.commit()
-
-    # установка цен для станций на кольце
-    # stations_on_circle = [
-    #     "Киевская",
-    #     "Краснопресненская",
-    #     "Белорусская",
-    #     "Новослободская",
-    #     "Проспект Мира",
-    #     "Комсомольская",
-    #     "Курская",
-    #     "Таганская",
-    #     "Павелецкая",
-    #     "Добрынинская",
-    #     "Октябрьская",
-    #     "Парк культуры",
-    # ]
-    # query = sa.select(Station)
-    # result = session.scalars(query).all()
-    # for station in result:
-    #     if station.name in stations_on_circle and station.line.name == "Кольцевая":
-    #         station.initial_price = 100_000
-    #         print(station.name)
-
-    #         session.merge(station)
-    #         session.commit()
