@@ -2,6 +2,7 @@ import datetime as dt
 import hashlib
 import random
 from typing import List, Optional
+from enum import Enum as PythonEnum
 import sqlalchemy as sa
 import sqlalchemy.orm as so
 from sqlalchemy.dialects.mysql import INTEGER
@@ -62,23 +63,33 @@ class Wallet(Base):
         INTEGER(unsigned=True), sa.ForeignKey("squads.id")
     )
     squad: so.Mapped["Squad"] = so.relationship(back_populates="wallet")
-    balance: so.Mapped[int] = so.mapped_column(sa.Integer)
-    transactions: so.Mapped[List["Transaction"]] = so.relationship()
+    current_balance: so.Mapped[int] = so.mapped_column(sa.Integer)
+    transactions: so.Mapped[List["Transaction"]] = so.relationship(
+        back_populates="wallet"
+    )
 
     def __init__(self, squad_id: int):
         self.squad_id = squad_id
         self.balance = 10000
 
 
+class TransactionStatus(PythonEnum):
+    CREATED = "created"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class Transaction(Base):
     __tablename__ = "transactions"
 
     id: so.Mapped[int] = so.mapped_column(primary_key=True)
-    date: so.Mapped[dt.datetime] = so.mapped_column(sa.DateTime)
-    wallet_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("wallets.id"))
+    timestamp: so.Mapped[dt.datetime] = so.mapped_column(sa.DateTime)
     amount: so.Mapped[int] = so.mapped_column(sa.Integer)
+    reason: so.Mapped[str] = so.mapped_column(sa.String(100))
+    status: so.Mapped[TransactionStatus] = so.mapped_column(sa.Enum(TransactionStatus))
+    wallet_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("wallets.id"))
     made_by_id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("users.id"))
-    wallet: so.Mapped["Wallet"] = so.relationship(back_populates="transactions")
+    wallet: so.Mapped[Wallet] = so.relationship(back_populates="transactions")
 
 
 class User(Base):
@@ -129,32 +140,6 @@ class Methodist(User):
     def __init__(self, username: str, pwd_hash: str, age_group: str):
         super().__init__(username, pwd_hash, "methodist")
         self.age_group = age_group
-
-
-class Counselor(User):
-    __tablename__ = "counselors"
-
-    __mapper_args__ = {"polymorphic_identity": "counselor"}
-
-    id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("users.id"), primary_key=True)
-    squad_number: so.Mapped[int] = so.mapped_column(sa.Integer)
-
-    def __init__(self, username: str, pwd_hash: str, squad_number: int):
-        super().__init__(username, pwd_hash, "counselor")
-        self.squad_number = squad_number
-
-
-class Pioneer(User):
-    __tablename__ = "pioneers"
-
-    __mapper_args__ = {"polymorphic_identity": "pioneer"}
-
-    id: so.Mapped[int] = so.mapped_column(sa.ForeignKey("users.id"), primary_key=True)
-    squad_number: so.Mapped[int] = so.mapped_column(sa.Integer)
-
-    def __init__(self, username: str, pwd_hash: str, squad_number: int):
-        super().__init__(username, pwd_hash, "pioneer")
-        self.squad_number = squad_number
 
 
 class Token(Base):
@@ -290,6 +275,7 @@ class Alchemy:
             return token.token
 
     def add_balance(self, squad_number: int, amount: int, session: so.Session) -> int:
+        session.begin()
         query = sa.Select(Squad).where(Squad.name == str(squad_number))
         squad: Squad = session.scalars(query).one_or_none()
         old_balance = squad.wallet.balance
