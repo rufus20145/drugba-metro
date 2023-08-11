@@ -5,7 +5,7 @@ from fastapi import FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from db import Alchemy, Counselor, Pioneer, LogMessage
+from db import Alchemy, LogMessage
 
 url = "mysql+pymysql://root:123456789@localhost:3306/metro"
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
