@@ -16,7 +16,7 @@ from models import Admin, Line, Roles, Squad, Station, Token, User
 
 url = os.getenv("DATABASE_URL")
 if not url:
-    raise Exception("DATABASE_URL is not set")
+    raise RuntimeError("DATABASE_URL is not set")
 app = FastAPI()  # docs_url=None, redoc_url=None, openapi_url=None
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
@@ -25,7 +25,7 @@ alchemy = Alchemy(url)
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
-    raise Exception("SECRET_KEY is not set")
+    raise RuntimeError("SECRET_KEY is not set")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
@@ -53,7 +53,7 @@ def parse_token(token: str) -> Token | None:
 @app.get(path="/", response_class=HTMLResponse)
 def get_root_page(request: Request):
     with alchemy.session_scope() as session:
-        lines_query = sa.select(Line)
+        lines_query = sa.select(Line).order_by(Line.order_number)
         lines = list(session.scalars(lines_query))
 
         squads_query = sa.select(Squad)
@@ -203,16 +203,36 @@ def register(
 def get_profile_page(request: Request):
     token_str = request.cookies.get("token")
     if not token_str:
-        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+        return RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
 
     token = parse_token(token_str)
     if not token:
-        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+        return RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
 
     if not token.is_valid():
-        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+        return RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
+    with alchemy.session_scope() as session:
+        user_query = sa.select(User).filter_by(username=token.username)
+        user = session.scalars(user_query).one_or_none()
 
-    return templates.TemplateResponse("profile.html", {"request": request})
+        if not user:
+            return RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
+
+        if user.role == Roles.ADMIN or user.role == Roles.METHODIST:
+            stations_q = sa.select(Station)
+            stations = list(session.scalars(stations_q))
+
+            squads_q = sa.select(Squad)
+            squads = list(session.scalars(squads_q))
+            return templates.TemplateResponse(
+                "admin.html",
+                {
+                    "request": request,
+                    "user": user,
+                    "stations": stations,
+                    "squads": squads,
+                },
+            )
 
 
 @app.get(path="/logout", response_class=RedirectResponse)

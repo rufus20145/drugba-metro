@@ -8,7 +8,7 @@
   </head>
   <body>
     <h1>Отряд {{ squad.name }}</h1>
-    <h2>Баланс отряда: {{ '{:,}'.format(squad.wallet.balance).replace(',', ' ') }}</h2>
+    <h2>Баланс отряда: {{ '{:,}'.format(squad.wallet.current_balance).replace(',', ' ') }}</h2>
     <table class="ta-center tab-center" border="1" style="margin-top: 40px;">
       <tr>
         <th>Линия</th>

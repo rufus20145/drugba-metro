@@ -1,6 +1,6 @@
 import datetime as dt
 from enum import Enum as PythonEnum
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -21,9 +21,9 @@ class Wallet(Base):
     current_balance: Mapped[int] = mapped_column(Integer)
     transactions: Mapped[List["Transaction"]] = relationship(back_populates="wallet")
 
-    def __init__(self, squad: "Squad"):
+    def __init__(self, squad: "Squad", initial_balance: Optional[int] = None):
         self.squad = squad
-        self.current_balance = self.INITIAL_BALANCE
+        self.current_balance = initial_balance or Wallet.INITIAL_BALANCE
 
 
 class TransactionType(PythonEnum):

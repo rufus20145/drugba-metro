@@ -62,7 +62,7 @@
           <td>
             <a href="/squad/{{ squad.name }}">{{ squad.name }}</a>
           </td>
-          <td>{{ '{:,}'.format(squad.wallet.balance).replace(',', ' ') }}</td>
+          <td>{{ '{:,}'.format(squad.wallet.current_balance).replace(',', ' ') }}</td>
         </tr>
       {% endfor %}
     </table>
