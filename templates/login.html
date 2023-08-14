@@ -14,7 +14,7 @@
       
         var form = new FormData(document.forms.auth)
         var xhr = new XMLHttpRequest()
-        xhr.open('POST', '/auth')
+        xhr.open('POST', '/login')
         xhr.onreadystatechange = function () {
           if (xhr.readyState === XMLHttpRequest.DONE) {
             if (xhr.status == 200) {
@@ -46,6 +46,6 @@
     </form>
     <div id="errorField" style="display: none;"></div>
 
-    <a href="/reg"><button>Зарегистрироваться</button></a>
+    <a href="/register"><button>Зарегистрироваться</button></a>
   </body>
 </html>

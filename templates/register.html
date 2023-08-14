@@ -29,7 +29,7 @@
       
         var form = new FormData(document.forms.register)
         var xhr = new XMLHttpRequest()
-        xhr.open('POST', '/reg')
+        xhr.open('POST', '/register')
         xhr.onreadystatechange = function () {
           if (xhr.readyState === XMLHttpRequest.DONE) {
             if (xhr.status == 201) {

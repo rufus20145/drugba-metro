@@ -1,33 +1,74 @@
-import hashlib
-from typing_extensions import Annotated
+import os
+from datetime import datetime, timedelta
+from typing import Annotated, Any
+
+import sqlalchemy as sa
 import uvicorn
-from fastapi import FastAPI, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse, RedirectResponse
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from db import Alchemy, LogMessage
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 
-url = "mysql+pymysql://root:123456789@localhost:3306/metro"
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+from db import Alchemy
+from models import Admin, Line, Roles, Squad, Station, Token, User
+
+url = os.getenv("DATABASE_URL")
+if not url:
+    raise Exception("DATABASE_URL is not set")
+app = FastAPI()  # docs_url=None, redoc_url=None, openapi_url=None
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 alchemy = Alchemy(url)
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise Exception("SECRET_KEY is not set")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_DAYS = 30
+
+
+def create_access_token(username: str):
+    data: dict[str, Any] = {"username": username}
+
+    expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+    data.update({"exp": expire})
+    encoded_jwt = jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+def parse_token(token: str) -> Token | None:
+    try:
+        # parse token str and get username and exp
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        tkn = Token(**payload)
+        return tkn
+    except JWTError as e:
+        print(e)
+        return None
 
 
 @app.get(path="/", response_class=HTMLResponse)
-def root(request: Request):
-    with alchemy.get_session() as session:
-        lines = alchemy.get_all_lines(session)
-        squads = alchemy.get_all_squads(session)
+def get_root_page(request: Request):
+    with alchemy.session_scope() as session:
+        lines_query = sa.select(Line)
+        lines = list(session.scalars(lines_query))
+
+        squads_query = sa.select(Squad)
+        squads = list(session.scalars(squads_query))
+
         return templates.TemplateResponse(
             "index.html", {"request": request, "lines": lines, "squads": squads}
         )
 
 
 @app.get("/bought-stations", response_class=HTMLResponse)
-def bought_stations(request: Request):
-    with alchemy.get_session() as session:
-        bought_stations = alchemy.get_bought_stations(session)
+def get_bought_stations_page(request: Request):
+    with alchemy.session_scope() as session:
+        query = sa.select(Station).where(Station.owner_id != None)
+        bought_stations = list(session.scalars(query))
         return templates.TemplateResponse(
             "bought-stations.html",
             {"request": request, "bought_stations": bought_stations},
@@ -35,135 +76,147 @@ def bought_stations(request: Request):
 
 
 @app.get(path="/squad/{number}", response_class=HTMLResponse)
-def squad(request: Request, number: int):
-    with alchemy.get_session() as session:
-        squad = alchemy.get_squad_by_number(str(number), session)
+def get_squad_info(request: Request, number: int):
+    with alchemy.session_scope() as session:
+        query = sa.select(Squad).filter_by(name=number)
+        squad = session.scalars(query).one_or_none()
+        if not squad:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Состава с таким номером не найдено",
+            )
         return templates.TemplateResponse(
             "squad.html", {"request": request, "squad": squad}
         )
 
 
 @app.get(path="/line/{number}", response_class=HTMLResponse)
-def line(request: Request, number: str):
-    with alchemy.get_session() as session:
-        line = alchemy.get_line_by_number(number, session)
-
-        if line is None:
-            raise HTTPException(status_code=404, detail="Item not found")
+def get_line_info(request: Request, number: str):
+    with alchemy.session_scope() as session:
+        query = sa.select(Line).filter_by(number=number)
+        line = session.scalars(query).one_or_none()
+        if not line:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Линия с таким номером не найдена",
+            )
         return templates.TemplateResponse(
             "line.html", {"request": request, "line": line}
         )
 
 
-@app.get(path="/auth", response_class=HTMLResponse)
 @app.get(path="/login", response_class=HTMLResponse)
-def auth(request: Request):
-    if request.cookies.get("token"):
-        return RedirectResponse("/profile", status_code=302)
+def get_auth_page(request: Request):
+    token_str = request.cookies.get("token")
+    if token_str:
+        token = parse_token(token_str)
+        if token and token.is_valid():
+            return RedirectResponse("/profile", status_code=status.HTTP_302_FOUND)
 
     return templates.TemplateResponse("login.html", {"request": request})
 
 
-@app.post(path="/auth", response_class=JSONResponse)
-def auth(
-    username: Annotated[str, Form()],
-    password: Annotated[str, Form()],
+@app.post(path="/login", response_class=JSONResponse)
+def login(
+    request: Request, username: Annotated[str, Form()], password: Annotated[str, Form()]
 ):
-    with alchemy.get_session() as session:
-        user = alchemy.get_user_by_username(username, session)
-        if user is None:
+    token_str = request.cookies.get("token")
+    if token_str:
+        token = parse_token(token_str)
+        if token and token.is_valid():
+            return RedirectResponse("/profile", status_code=status.HTTP_302_FOUND)
+
+    with alchemy.session_scope() as session:
+        query = sa.select(User).filter_by(username=username)
+        user = session.scalars(query).one_or_none()
+        if not user:
             return JSONResponse(
                 status_code=401, content={"message": "Неверный логин или пароль"}
             )
-        if user.pwd_hash != _hash(password):
+        if not pwd_context.verify(password, user.pwd_hash):
             return JSONResponse(
                 status_code=401, content={"message": "Неверный логин или пароль"}
             )
         response = JSONResponse(
             status_code=200, content={"message": "Авторизация прошла успешно"}
         )
-        # тут добавить обновление токена
-        token_str = alchemy.get_or_generate_token(user)
+        token = create_access_token(user.username)
         response.set_cookie(
-            key="token",
-            value=token_str,
-            expires=14 * 24 * 60 * 60,
+            "token", token, expires=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
         )
         return response
 
 
-@app.get(path="/reg", response_class=HTMLResponse)
 @app.get(path="/register", response_class=HTMLResponse)
-def reg(request: Request):
-    if request.cookies.get("token"):
-        return RedirectResponse("/profile", status_code=302)
+def get_register_page(request: Request):
+    token_str = request.cookies.get("token")
+    if token_str:
+        token = parse_token(token_str)
+        if token and token.is_valid():
+            return RedirectResponse("/profile", status_code=status.HTTP_302_FOUND)
 
     return templates.TemplateResponse("register.html", {"request": request})
 
 
-@app.post(path="/reg", response_class=JSONResponse)
-def reg(
+@app.post(path="/register", response_class=JSONResponse)
+def register(
+    request: Request,
     username: Annotated[str, Form()],
     password: Annotated[str, Form()],
     role: Annotated[str, Form()],
-    squadNumber: Annotated[int, Form()],
 ):
-    if alchemy.get_user_by_username(username, alchemy.get_session()):
-        return JSONResponse(
-            status_code=401,
-            content={"message": "Логин уже занят"},
-        )
+    token_str = request.cookies.get("token")
+    if token_str:
+        token = parse_token(token_str)
+        if token and token.is_valid():
+            return RedirectResponse("/profile", status_code=status.HTTP_302_FOUND)
 
-    if role == "pioneer":
-        new_user = Pioneer(username, _hash(password), squadNumber)
-    elif role == "counselor":
-        new_user = Counselor(username, _hash(password), squadNumber)
+    with alchemy.session_scope() as session:
+        query = sa.select(User).filter_by(username=username)
+        user = session.scalars(query).one_or_none()
+        if user:
+            return JSONResponse(
+                status_code=400,
+                content={"message": "Пользователь с таким логином уже существует"},
+            )
 
-    with alchemy.get_session() as session:
-        session.add(new_user)
-        session.commit()
+        match role:
+            case Roles.ADMIN:
+                new_user = Admin(username=username, pwd_hash=pwd_context.hash(password))
+                session.add(
+                    new_user
+                )  # переместить после match, когда будет полноценная регистрация
+            case Roles.METHODIST:
+                pass
+
         response = JSONResponse(
-            status_code=201, content={"message": "Регистрация прошла успешно"}
+            status_code=200, content={"message": "Регистрация прошла успешно"}
         )
-        token_str = alchemy.get_or_generate_token(new_user)
+        token = create_access_token(username)
         response.set_cookie(
-            key="token",
-            value=token_str,
-            expires=14 * 24 * 60 * 60,
+            "token", token, expires=ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
         )
         return response
 
 
 @app.get(path="/profile", response_class=HTMLResponse)
-def profile(request: Request):
-    token = request.cookies.get("token")
-    if not token:
-        return RedirectResponse("/login", status_code=302)
+def get_profile_page(request: Request):
+    token_str = request.cookies.get("token")
+    if not token_str:
+        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
 
-    user = alchemy.get_user_by_token(token)
-    if user.role == "admin" or user.role == "methodist":
-        with alchemy.get_session() as session:
-            return templates.TemplateResponse(
-                "admin.html",
-                {
-                    "request": request,
-                    "user": user,
-                    "stations": alchemy.get_all_stations(session=session),
-                    "squads": alchemy.get_all_squads(session=session),
-                },
-            )
-    if user.role == "admin" or user.role == "methodist":
-        return templates.TemplateResponse(
-            "methodist.html", {"request": request, "user": user}
-        )
-    return templates.TemplateResponse(
-        "profile.html", {"request": request, "user": user}
-    )
+    token = parse_token(token_str)
+    if not token:
+        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+
+    if not token.is_valid():
+        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+
+    return templates.TemplateResponse("profile.html", {"request": request})
 
 
 @app.get(path="/logout", response_class=RedirectResponse)
-@app.get(path="/deauth", response_class=RedirectResponse)
-def logout(request: Request):
+def logout():
     response = RedirectResponse("/login", status_code=302)
     response.delete_cookie("token")
     return response
@@ -173,10 +226,17 @@ def logout(request: Request):
 def change_station_owner(
     request: Request, station: Annotated[int, Form()], squad: Annotated[int, Form()]
 ):
-    token = request.cookies.get("token")
+    token_str = request.cookies.get("token")
+    if not token_str:
+        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+
+    token = parse_token(token_str)
     if not token:
-        return JSONResponse(status_code=401, content={"message": "Нет доступа"})
-    with alchemy.get_session() as session:
+        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+
+    if not token.is_valid():
+        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+
         old_owner = alchemy.change_station_owner(station, squad, session)
         station_price = alchemy.get_station_price(station, session)
         log_message = LogMessage(
@@ -202,10 +262,17 @@ def add_balance(
     amount: Annotated[int, Form()],
     reason: Annotated[str, Form()],
 ):
-    token = request.cookies.get("token")
+    token_str = request.cookies.get("token")
+    if not token_str:
+        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+
+    token = parse_token(token_str)
     if not token:
-        return JSONResponse(status_code=401, content={"message": "Нет доступа"})
-    with alchemy.get_session() as session:
+        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+
+    if not token.is_valid():
+        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+
         old_balance = alchemy.add_balance(squad, amount, session)
         log_message = LogMessage(
             username=alchemy.get_user_by_token(token).username,
@@ -222,7 +289,9 @@ def add_balance(
 def page_not_found(request: Request, exc: HTTPException):
     if exc.status_code == 404:
         return templates.TemplateResponse(
-            "404.html", {"request": request}, status_code=exc.status_code
+            "404.html",
+            {"request": request, "info": exc.detail},
+            status_code=exc.status_code,
         )
     return templates.TemplateResponse(
         "500.html", {"request": request}, status_code=exc.status_code
@@ -232,10 +301,6 @@ def page_not_found(request: Request, exc: HTTPException):
 @app.get(path="/favicon.ico", response_class=FileResponse, include_in_schema=False)
 async def icon():
     return FileResponse("static/favicon.ico")
-
-
-def _hash(string: str) -> str:
-    return hashlib.sha256(string.encode("utf-8")).hexdigest()
 
 
 if __name__ == "__main__":
