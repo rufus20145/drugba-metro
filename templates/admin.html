@@ -16,13 +16,9 @@
           if (xhr.readyState === XMLHttpRequest.DONE) {
             var resp = JSON.parse(xhr.responseText)
             if (xhr.status == 201) {
-              console.log(resp.station_name)
-              document.getElementById('addSquad').value = document.getElementById('chngSquad').value
-              document.getElementById('addAmount').value = resp.price * -1
-              document.getElementById('addReason').value = 'покупка станции ' + resp.station_name
               messageField.style.color = 'green'
               messageField.innerHTML = resp.message
-            } else if (xhr.status == 401) {
+            } else if (xhr.status == 401 || xhr.status == 400) {
               messageField.style.display = 'block'
               messageField.style.color = 'red'
               messageField.innerHTML = resp.message
@@ -45,14 +41,19 @@
         xhr.open('POST', '/admin/add-balance')
         xhr.onreadystatechange = function () {
           if (xhr.readyState === XMLHttpRequest.DONE) {
+            var resp = JSON.parse(xhr.responseText)
             if (xhr.status == 201) {
               messageField.style.display = 'block'
               messageField.style.color = 'green'
-              messageField.innerHTML = JSON.parse(xhr.responseText).message
+              messageField.innerHTML = resp.message
             } else if (xhr.status == 401 || xhr.status == 400) {
               messageField.style.display = 'block'
               messageField.style.color = 'red'
-              messageField.innerHTML = JSON.parse(xhr.responseText).message
+              messageField.innerHTML = resp.message
+            } else {
+              messageField.style.display = 'block'
+              messageField.style.color = 'red'
+              messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
             }
           }
         }
@@ -63,16 +64,18 @@
 
   <body>
     <h1>Админ {{ user.username }}</h1>
+    <br />
 
+    <h2>Покупка станции:</h2>
     <form name="changeOwner" onsubmit="chngOwner()">
       <label for="chngStation">Станция:</label>
-      <select name="station" id="chngStation">
+      <select name="station_id" id="chngStation">
         {% for station in stations %}
           <option value="{{ station.id }}">{{ station.line.number }} {{ station.name }}</option>
         {% endfor %}
       </select>
       <label for="chngSquad">Новый владелец:</label>
-      <select name="squad" id="chngSquad">
+      <select name="squad_id" id="chngSquad">
         <option value="-1">Нет владельца</option>
         {% for squad in squads %}
           <option value="{{ squad.id }}">{{ squad.name }} отряд</option>
@@ -82,21 +85,28 @@
     </form>
 
     <div id="ownerField"></div>
-
-    <br />
     <br />
 
+    <h2>Обновление балансов:</h2>
     <form name="addBalance" onsubmit="adBalance()">
       <label for="addSquad">Номер отряда:</label>
-      <select name="squad" id="addSquad" required>
+      <select name="squad_id" id="addSquad" required>
         <option hidden disabled selected value>выберите отряд</option>
         {% for squad in squads %}
           <option value="{{ squad.id }}">{{ squad.name }}</option>
         {% endfor %}
       </select>
 
-      <label for="addAmount">Изменить сумму на:</label>
-      <input type="number" name="amount" id="addAmount" required />
+      <fieldset>
+        <legend>Действие (списать или прибавить):</legend>
+        <label for="add_radio">Начислить</label>
+        <input type="radio" name="type" id="add_radio" value="deposit" checked />
+        <label for="sub_radio">Списать</label>
+        <input type="radio" name="type" id="sub_radio" value="withdraw" />
+      </fieldset>
+
+      <label for="addAmount">Сумма:</label>
+      <input type="number" name="amount" id="addAmount" required min="0" />
       <label for="addReason">Основание:</label>
       <input type="text" name="reason" id="addReason" />
       <input type="submit" value="Применить" />

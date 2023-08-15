@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from models.camp import Squad
     from models.users import User
 
+
 class Wallet(Base):
     INITIAL_BALANCE = 10000
     __tablename__ = "wallets"
@@ -27,9 +28,8 @@ class Wallet(Base):
 
 
 class TransactionType(PythonEnum):
-    DEPOSIT = "deposit"
-    WITHDRAWAL = "withdrawal"
-    TEST = "test"  # FIXME remove before release
+    DEPOSIT = "Пополнение"
+    WITHDRAWAL = "Списание"
 
 
 class TransactionStatus(PythonEnum):
@@ -52,10 +52,7 @@ class Transaction(Base):
     made_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     made_by: Mapped["User"] = relationship(back_populates="transactions")
 
-    __mapper_args__ = {
-        "polymorphic_on": "type",
-        "polymorphic_identity": TransactionType.TEST,
-    }
+    __mapper_args__ = {"polymorphic_on": "type"}
 
     def __init__(
         self,

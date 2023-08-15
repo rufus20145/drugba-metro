@@ -13,6 +13,7 @@ from passlib.context import CryptContext
 
 from db import Alchemy
 from models import Admin, Line, Roles, Squad, Station, Token, User
+from models.money import Deposit, Transaction, TransactionStatus, Wallet, Withdrawal
 
 url = os.getenv("DATABASE_URL")
 if not url:
@@ -78,15 +79,22 @@ def get_bought_stations_page(request: Request):
 @app.get(path="/squad/{number}", response_class=HTMLResponse)
 def get_squad_info(request: Request, number: int):
     with alchemy.session_scope() as session:
-        query = sa.select(Squad).filter_by(name=number)
-        squad = session.scalars(query).one_or_none()
+        squad_q = sa.select(Squad).filter_by(name=number)
+        squad = session.scalars(squad_q).one_or_none()
         if not squad:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Состава с таким номером не найдено",
+                detail="Состава с таким номером не найдено",
             )
+        transactions_q = (
+            sa.select(Transaction)
+            .filter_by(wallet_id=squad.wallet.id)
+            .filter_by(status=TransactionStatus.COMPLETED)
+        )
+        transactions = list(session.scalars(transactions_q))
         return templates.TemplateResponse(
-            "squad.html", {"request": request, "squad": squad}
+            "squad.html",
+            {"request": request, "squad": squad, "transactions": transactions},
         )
 
 
@@ -244,63 +252,124 @@ def logout():
 
 @app.post(path="/admin/change-station-owner", response_class=JSONResponse)
 def change_station_owner(
-    request: Request, station: Annotated[int, Form()], squad: Annotated[int, Form()]
+    request: Request,
+    station_id: Annotated[int, Form()],
+    squad_id: Annotated[int, Form()],
 ):
     token_str = request.cookies.get("token")
     if not token_str:
-        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse(status_code=401, content={"message": "No permission"})
 
     token = parse_token(token_str)
     if not token:
-        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse(status_code=401, content={"message": "No permission"})
 
     if not token.is_valid():
-        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse(status_code=401, content={"message": "No permission"})
 
-        old_owner = alchemy.change_station_owner(station, squad, session)
-        station_price = alchemy.get_station_price(station, session)
-        log_message = LogMessage(
-            username=alchemy.get_user_by_token(token).username,
-            message=f"Changed owner of station {station} from {old_owner} to {squad}",
-        )
-        session.add(log_message)
-        session.commit()
-        return JSONResponse(
-            status_code=201,
-            content={
-                "message": f"Владелец изменен. Стоимость станции {station_price}",
-                "price": station_price,
-                "station_name": alchemy.get_station_name(station, session),
-            },
-        )
+    with alchemy.session_scope() as session:
+        user_q = sa.select(User).filter_by(username=token.username)
+        user = session.scalars(user_q).one_or_none()
+        if not user:
+            return JSONResponse(status_code=401, content={"message": "No permission"})
+        if user.role != Roles.ADMIN and user.role != Roles.METHODIST:
+            return JSONResponse(status_code=401, content={"message": "No permission"})
+
+        wallet_q = sa.select(Wallet).filter_by(squad_id=squad_id)
+        wallet = session.scalars(wallet_q).one_or_none()
+        if not wallet:
+            return JSONResponse(
+                status_code=401, content={"message": "Состав не найден"}
+            )
+        station_q = sa.select(Station).filter_by(id=station_id)
+        station = session.scalars(station_q).one_or_none()
+        if not station:
+            return JSONResponse(
+                status_code=401, content={"message": "Станция не найдена"}
+            )
+        if station.owner_id:
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "message": "Станция уже куплена. Перепродажа будет реализована позже."
+                },
+            )
+        try:
+            withdrawal = Withdrawal(
+                wallet=wallet,
+                amount=station.initial_price,
+                reason=f"Покупка станции {station.name}",
+                made_by=user,
+            )
+            session.add(withdrawal)
+            withdrawal.execute()
+            station.owner_id = squad_id
+            session.merge(station)
+            return JSONResponse(
+                status_code=201,
+                content={
+                    "message": f"Станция {station.name} куплена {squad_id} отрядом за {station.initial_price} дружбанов"
+                },
+            )
+        except ValueError as e:
+            return JSONResponse(status_code=400, content={"message": str(e)})
 
 
 @app.post(path="/admin/add-balance", response_class=JSONResponse)
 def add_balance(
     request: Request,
-    squad: Annotated[int, Form()],
+    squad_id: Annotated[int, Form()],
+    type: Annotated[str, Form()],
     amount: Annotated[int, Form()],
     reason: Annotated[str, Form()],
 ):
     token_str = request.cookies.get("token")
     if not token_str:
-        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse(status_code=401, content={"message": "No permission"})
 
     token = parse_token(token_str)
     if not token:
-        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse(status_code=401, content={"message": "No permission"})
 
     if not token.is_valid():
-        return RedirectResponse("/login", status_code=status.HTTP_401_UNAUTHORIZED)
+        return JSONResponse(status_code=401, content={"message": "No permission"})
 
-        old_balance = alchemy.add_balance(squad, amount, session)
-        log_message = LogMessage(
-            username=alchemy.get_user_by_token(token).username,
-            message=f"Changed balance of squad {squad} by {amount}. Old balance: {old_balance}. New balance: {old_balance + amount}. Reason: {reason}",
-        )
-        session.add(log_message)
-        session.commit()
-        return JSONResponse(status_code=201, content={"message": "Баланс изменен"})
+    with alchemy.session_scope() as session:
+        user_q = sa.select(User).filter_by(username=token.username)
+        user = session.scalars(user_q).one_or_none()
+        if not user:
+            return JSONResponse(status_code=401, content={"message": "No permission"})
+        if user.role != Roles.ADMIN and user.role != Roles.METHODIST:
+            return JSONResponse(status_code=401, content={"message": "No permission"})
+
+        wallet_q = sa.select(Wallet).filter_by(squad_id=squad_id)
+        wallet = session.scalars(wallet_q).one_or_none()
+        if not wallet:
+            return JSONResponse(
+                status_code=401, content={"message": "Состав не найден"}
+            )
+        old_balance = wallet.current_balance
+        try:
+            if type == "deposit":
+                deposit = Deposit(
+                    wallet=wallet, amount=amount, reason=reason, made_by=user
+                )
+                session.add(deposit)
+                deposit.execute()
+            elif type == "withdrawal":
+                withdrawal = Withdrawal(
+                    wallet=wallet, amount=amount, reason=reason, made_by=user
+                )
+                session.add(withdrawal)
+                withdrawal.execute()
+            return JSONResponse(
+                status_code=201,
+                content={
+                    "message": f"Баланс {squad_id} отряда успешно обновлен ({old_balance} -> {wallet.current_balance})"
+                },
+            )
+        except ValueError as e:
+            return JSONResponse(status_code=400, content={"message": str(e)})
 
 
 # ======================================================================================
