@@ -34,7 +34,7 @@
           if (xhr.readyState === XMLHttpRequest.DONE) {
             if (xhr.status == 201) {
               location.href = '/profile'
-            } else if (xhr.status == 401) {
+            } else if (xhr.status == 400 || xhr.status == 501) {
               var errorField = document.getElementById('errorField')
               errorField.style.display = 'block'
               errorField.style.color = 'red'

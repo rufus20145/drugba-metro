@@ -139,14 +139,17 @@ def login(
         user = session.scalars(query).one_or_none()
         if not user:
             return JSONResponse(
-                status_code=401, content={"message": "Неверный логин или пароль"}
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"message": "Неверный логин или пароль"},
             )
         if not pwd_context.verify(password, user.pwd_hash):
             return JSONResponse(
-                status_code=401, content={"message": "Неверный логин или пароль"}
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"message": "Неверный логин или пароль"},
             )
         response = JSONResponse(
-            status_code=200, content={"message": "Авторизация прошла успешно"}
+            status_code=status.HTTP_200_OK,
+            content={"message": "Аутентификация прошла успешно"},
         )
         token = create_access_token(user.username)
         response.set_cookie(
@@ -184,7 +187,7 @@ def register(
         user = session.scalars(query).one_or_none()
         if user:
             return JSONResponse(
-                status_code=400,
+                status_code=status.HTTP_400_BAD_REQUEST,
                 content={"message": "Пользователь с таким логином уже существует"},
             )
 
@@ -196,9 +199,17 @@ def register(
                 )  # переместить после match, когда будет полноценная регистрация
             case Roles.METHODIST:
                 pass
+            case _:
+                return JSONResponse(
+                    status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                    content={
+                        "message": "Регистрация с данной ролью ещё не реализована"
+                    },
+                )
 
         response = JSONResponse(
-            status_code=200, content={"message": "Регистрация прошла успешно"}
+            status_code=status.HTTP_201_CREATED,
+            content={"message": "Регистрация прошла успешно"},
         )
         token = create_access_token(username)
         response.set_cookie(
@@ -209,22 +220,21 @@ def register(
 
 @app.get(path="/profile", response_class=HTMLResponse)
 def get_profile_page(request: Request):
+    login_redirect = RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
     token_str = request.cookies.get("token")
     if not token_str:
-        return RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
-
+        return login_redirect
     token = parse_token(token_str)
     if not token:
-        return RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
-
+        return login_redirect
     if not token.is_valid():
-        return RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
+        return login_redirect
+
     with alchemy.session_scope() as session:
         user_query = sa.select(User).filter_by(username=token.username)
         user = session.scalars(user_query).one_or_none()
-
         if not user:
-            return RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
+            return login_redirect
 
         if user.role == Roles.ADMIN or user.role == Roles.METHODIST:
             stations_q = sa.select(Station)
@@ -242,10 +252,14 @@ def get_profile_page(request: Request):
                 },
             )
 
+        return templates.TemplateResponse(
+            "profile.html", {"request": request, "user": user}
+        )
+
 
 @app.get(path="/logout", response_class=RedirectResponse)
 def logout():
-    response = RedirectResponse("/login", status_code=302)
+    response = RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
     response.delete_cookie("token")
     return response
 
@@ -256,40 +270,43 @@ def change_station_owner(
     station_id: Annotated[int, Form()],
     squad_id: Annotated[int, Form()],
 ):
+    no_permission = JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN, content={"message": "No permission"}
+    )
     token_str = request.cookies.get("token")
     if not token_str:
-        return JSONResponse(status_code=401, content={"message": "No permission"})
-
+        return no_permission
     token = parse_token(token_str)
     if not token:
-        return JSONResponse(status_code=401, content={"message": "No permission"})
-
+        return no_permission
     if not token.is_valid():
-        return JSONResponse(status_code=401, content={"message": "No permission"})
+        return no_permission
 
     with alchemy.session_scope() as session:
         user_q = sa.select(User).filter_by(username=token.username)
         user = session.scalars(user_q).one_or_none()
         if not user:
-            return JSONResponse(status_code=401, content={"message": "No permission"})
+            return no_permission
         if user.role != Roles.ADMIN and user.role != Roles.METHODIST:
-            return JSONResponse(status_code=401, content={"message": "No permission"})
+            return no_permission
 
         wallet_q = sa.select(Wallet).filter_by(squad_id=squad_id)
         wallet = session.scalars(wallet_q).one_or_none()
         if not wallet:
             return JSONResponse(
-                status_code=401, content={"message": "Состав не найден"}
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"message": "Состав не найден"},
             )
         station_q = sa.select(Station).filter_by(id=station_id)
         station = session.scalars(station_q).one_or_none()
         if not station:
             return JSONResponse(
-                status_code=401, content={"message": "Станция не найдена"}
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"message": "Станция не найдена"},
             )
         if station.owner_id:
             return JSONResponse(
-                status_code=401,
+                status_code=status.HTTP_400_BAD_REQUEST,
                 content={
                     "message": "Станция уже куплена. Перепродажа будет реализована позже."
                 },
@@ -306,13 +323,15 @@ def change_station_owner(
             station.owner_id = squad_id
             session.merge(station)
             return JSONResponse(
-                status_code=201,
+                status_code=status.HTTP_201_CREATED,
                 content={
                     "message": f"Станция {station.name} куплена {squad_id} отрядом за {station.initial_price} дружбанов"
                 },
             )
         except ValueError as e:
-            return JSONResponse(status_code=400, content={"message": str(e)})
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST, content={"message": str(e)}
+            )
 
 
 @app.post(path="/admin/add-balance", response_class=JSONResponse)
@@ -323,30 +342,34 @@ def add_balance(
     amount: Annotated[int, Form()],
     reason: Annotated[str, Form()],
 ):
+    no_permission = JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN, content={"message": "No permission"}
+    )
     token_str = request.cookies.get("token")
     if not token_str:
-        return JSONResponse(status_code=401, content={"message": "No permission"})
+        return no_permission
 
     token = parse_token(token_str)
     if not token:
-        return JSONResponse(status_code=401, content={"message": "No permission"})
+        return no_permission
 
     if not token.is_valid():
-        return JSONResponse(status_code=401, content={"message": "No permission"})
+        return no_permission
 
     with alchemy.session_scope() as session:
         user_q = sa.select(User).filter_by(username=token.username)
         user = session.scalars(user_q).one_or_none()
         if not user:
-            return JSONResponse(status_code=401, content={"message": "No permission"})
+            return no_permission
         if user.role != Roles.ADMIN and user.role != Roles.METHODIST:
-            return JSONResponse(status_code=401, content={"message": "No permission"})
+            return no_permission
 
         wallet_q = sa.select(Wallet).filter_by(squad_id=squad_id)
         wallet = session.scalars(wallet_q).one_or_none()
         if not wallet:
             return JSONResponse(
-                status_code=401, content={"message": "Состав не найден"}
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"message": "Состав не найден"},
             )
         old_balance = wallet.current_balance
         try:
@@ -356,20 +379,22 @@ def add_balance(
                 )
                 session.add(deposit)
                 deposit.execute()
-            elif type == "withdrawal":
+            elif type == "withdraw":
                 withdrawal = Withdrawal(
                     wallet=wallet, amount=amount, reason=reason, made_by=user
                 )
                 session.add(withdrawal)
                 withdrawal.execute()
             return JSONResponse(
-                status_code=201,
+                status_code=status.HTTP_201_CREATED,
                 content={
                     "message": f"Баланс {squad_id} отряда успешно обновлен ({old_balance} -> {wallet.current_balance})"
                 },
             )
         except ValueError as e:
-            return JSONResponse(status_code=400, content={"message": str(e)})
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST, content={"message": str(e)}
+            )
 
 
 # ======================================================================================
