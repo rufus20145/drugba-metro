@@ -8,17 +8,23 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from models.base import Base
 
 if TYPE_CHECKING:
+    from models.camp import AgeGroup, Squad
     from models.money import Transaction
 
 
 class Roles(PythonEnum):
     ADMIN = "admin"
-    METHODIST = "methodist"
+    METHODIST = "Контролер"
+    COUNSELOR = "Машинист"
+    CAMPER = "Пассажир"
+    METRO_CAMPER = "metro_camper" # специально для 4 отряда, где ребенок отвечает за метро
     USER = "user"
 
 
 class User(Base):
     __tablename__ = "users"
+    __mapper_args__ = {"polymorphic_identity": Roles.USER, "polymorphic_on": "role"}
+    __table_args__ = (UniqueConstraint("username", name="username_unique"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(100), nullable=False)
@@ -27,10 +33,6 @@ class User(Base):
     transactions: Mapped[List["Transaction"]] = relationship(
         back_populates="made_by"
     )  # а оно нужно?
-
-    __table_args__ = (UniqueConstraint("username", name="username_unique"),)
-
-    __mapper_args__ = {"polymorphic_identity": Roles.USER, "polymorphic_on": "role"}
 
     def __init__(
         self,
@@ -45,7 +47,6 @@ class User(Base):
 
 class Admin(User):
     __tablename__ = "admins"
-
     __mapper_args__ = {"polymorphic_identity": Roles.ADMIN}
 
     id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
@@ -56,21 +57,53 @@ class Admin(User):
 
 class Methodist(User):
     __tablename__ = "methodists"
-
     __mapper_args__ = {"polymorphic_identity": Roles.METHODIST}
 
     id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
-    age_group: Mapped[str] = mapped_column(String(100))
+    age_group_id: Mapped[int] = mapped_column(
+        ForeignKey("age_groups.id"), nullable=False
+    )
+    age_group: Mapped["AgeGroup"] = relationship(back_populates="methodist")
 
-    def __init__(self, username: str, pwd_hash: str, age_group: str):
+    def __init__(self, username: str, pwd_hash: str, age_group: "AgeGroup"):
         super().__init__(username, pwd_hash, Roles.METHODIST)
         self.age_group = age_group
 
 
-class Token:
-    username: str
-    exp: int
+class Counselor(User):
+    __tablename__ = "counselors"
+    __mapper_args__ = {"polymorphic_identity": Roles.COUNSELOR}
 
+    id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    squad_id: Mapped[int] = mapped_column(ForeignKey("squads.id"), nullable=False)
+    squad: Mapped["Squad"] = relationship(back_populates="counselors")
+
+    def __init__(self, username: str, pwd_hash: str, squad: "Squad"):
+        super().__init__(username, pwd_hash, Roles.COUNSELOR)
+        self.squad = squad
+
+
+class Camper(User):
+    __tablename__ = "campers"
+    __mapper_args__ = {"polymorphic_identity": Roles.CAMPER}
+
+    id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    squad_id: Mapped[int] = mapped_column(ForeignKey("squads.id"), nullable=False)
+    squad: Mapped["Squad"] = relationship(back_populates="campers")
+
+    def __init__(self, username: str, pwd_hash: str, squad: "Squad"):
+        super().__init__(username, pwd_hash, Roles.CAMPER)
+        self.squad = squad
+
+
+class MetroCamper(Camper):
+    __tablename__ = "metro_campers"
+    __mapper_args__ = {"polymorphic_identity": Roles.METRO_CAMPER}
+
+    id: Mapped[int] = mapped_column(ForeignKey("campers.id"), primary_key=True)
+
+
+class Token:
     def __init__(self, username: str, exp: int):
         self.username = username
         self.exp = exp

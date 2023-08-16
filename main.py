@@ -12,8 +12,10 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from db import Alchemy
-from models import Admin, Line, Roles, Squad, Station, Token, User
+from models.camp import Squad
+from models.metro import Line, Station
 from models.money import Deposit, Transaction, TransactionStatus, Wallet, Withdrawal
+from models.users import Camper, Counselor, Roles, Token, User
 
 url = os.getenv("DATABASE_URL")
 if not url:
@@ -21,7 +23,7 @@ if not url:
 app = FastAPI()  # docs_url=None, redoc_url=None, openapi_url=None
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], bcrypt__rounds=8)
 alchemy = Alchemy(url)
 
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -166,7 +168,13 @@ def get_register_page(request: Request):
         if token and token.is_valid():
             return RedirectResponse("/profile", status_code=status.HTTP_302_FOUND)
 
-    return templates.TemplateResponse("register.html", {"request": request})
+    with alchemy.session_scope() as session:
+        roles = [Roles.COUNSELOR, Roles.CAMPER]
+        squads_q = sa.select(Squad)
+        squads = list(session.scalars(squads_q))
+        return templates.TemplateResponse(
+            "register.html", {"request": request, "roles": roles, "squads": squads}
+        )
 
 
 @app.post(path="/register", response_class=JSONResponse)
@@ -174,7 +182,8 @@ def register(
     request: Request,
     username: Annotated[str, Form()],
     password: Annotated[str, Form()],
-    role: Annotated[str, Form()],
+    role_str: Annotated[str, Form()],
+    squad_number: Annotated[int, Form()],
 ):
     token_str = request.cookies.get("token")
     if token_str:
@@ -182,31 +191,35 @@ def register(
         if token and token.is_valid():
             return RedirectResponse("/profile", status_code=status.HTTP_302_FOUND)
 
+    role = Roles[role_str]
     with alchemy.session_scope() as session:
-        query = sa.select(User).filter_by(username=username)
-        user = session.scalars(query).one_or_none()
+        user_q = sa.select(User).filter_by(username=username)
+        user = session.scalars(user_q).one_or_none()
         if user:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={"message": "Пользователь с таким логином уже существует"},
             )
 
+        squad_q = sa.select(Squad).filter_by(number=squad_number)
+        squad = session.scalars(squad_q).one_or_none()
+        if not squad:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"message": "Состава с таким номером не найдено"},
+            )
+
         match role:
-            case Roles.ADMIN:
-                new_user = Admin(username=username, pwd_hash=pwd_context.hash(password))
-                session.add(
-                    new_user
-                )  # переместить после match, когда будет полноценная регистрация
-            case Roles.METHODIST:
-                pass
+            case Roles.COUNSELOR:
+                new_user = Counselor(username, pwd_context.hash(password), squad)
+            case Roles.CAMPER:
+                new_user = Camper(username, pwd_context.hash(password), squad)
             case _:
                 return JSONResponse(
                     status_code=status.HTTP_501_NOT_IMPLEMENTED,
-                    content={
-                        "message": "Регистрация с данной ролью ещё не реализована"
-                    },
+                    content={"message": "Неизвестная роль."},
                 )
-
+        session.add(new_user)
         response = JSONResponse(
             status_code=status.HTTP_201_CREATED,
             content={"message": "Регистрация прошла успешно"},

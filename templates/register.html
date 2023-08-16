@@ -10,20 +10,6 @@
         passwordInput.type = passwordInput.type === 'password' ? 'text' : 'password'
       }
       
-      function toggleOptionalFields() {
-        var roleSelect = document.getElementById('role')
-        var pioneerCounselorFields = document.getElementById('pioneerCounselorFields')
-        var squadNumberInput = document.getElementById('squadNumber')
-      
-        if (roleSelect.value === 'counselor' || roleSelect.value === 'pioneer') {
-          pioneerCounselorFields.style.display = 'block'
-          squadNumberInput.required = true
-        } else {
-          pioneerCounselorFields.style.display = 'none'
-          squadNumberInput.required = false
-        }
-      }
-      
       function sendRequest() {
         event.preventDefault()
       
@@ -58,14 +44,21 @@
       <button type="button" onclick="togglePasswordVisibility()">Показать пароль</button>
       <br />
       <label for="role">Роль:</label>
-      <select id="role" name="role" onchange="toggleOptionalFields();">
-        <!-- <option value="counselor">Машинист</option> -->
-        <option value="pioneer" selected>Пассажир</option>
+      <select id="role" name="role_str" required>
+        <option hidden disabled selected value="">выберите</option>
+        {% for role in roles %}
+          <option value="{{ role.name }}">{{ role.value }}</option>
+        {% endfor %}
       </select>
-      <div id="pioneerCounselorFields" style="display: block;">
-        <label for="squadNumber">Номер состава:</label>
-        <input type="number" id="squadNumber" name="squadNumber" />
-      </div>
+      <br />
+      <label for="squadNumber">Номер состава:</label>
+      <select name="squad_number" id="squadNumber" required>
+        <option hidden disabled selected value="">выберите</option>
+        {% for squad in squads %}
+          <option value="{{ squad.number }}">{{ squad.number }}</option>
+        {% endfor %}
+      </select>
+      <br />
       <input type="submit" value="Зарегистрироваться" />
     </form>
     <div id="errorField" style="display: none;"></div>
