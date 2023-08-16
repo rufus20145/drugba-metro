@@ -92,6 +92,8 @@ class Withdrawal(Transaction):
     def execute(self):
         if self.amount > self.wallet.current_balance:
             self.status = TransactionStatus.FAILED
-            raise ValueError("Недостаточно средств")
+            raise ValueError(
+                f"{self.wallet.squad.number} отряду недостаточно средств. Необходимо ещё {self.amount - self.wallet.current_balance} дружбанов."
+            )
         self.wallet.current_balance -= self.amount
         self.status = TransactionStatus.COMPLETED
