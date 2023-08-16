@@ -93,7 +93,7 @@
     <form name="addBalance" onsubmit="adBalance()">
       <label for="addSquad">Номер отряда:</label>
       <select name="squad_id" id="addSquad" required>
-        <option hidden disabled selected value>выберите отряд</option>
+        <option hidden disabled selected>выберите отряд</option>
         {% for squad in squads %}
           <option value="{{ squad.id }}">{{ squad.name }}</option>
         {% endfor %}
