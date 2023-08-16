@@ -70,12 +70,14 @@
     <form name="changeOwner" onsubmit="chngOwner()">
       <label for="chngStation">Станция:</label>
       <select name="station_id" id="chngStation">
+        <option hidden disabled selected>выберите станцию</option>
         {% for station in stations %}
           <option value="{{ station.id }}">{{ station.line.number }} {{ station.name }}</option>
         {% endfor %}
       </select>
       <label for="chngSquad">Новый владелец:</label>
       <select name="squad_id" id="chngSquad">
+        <option hidden disabled selected>выберите отряд</option>
         <option value="-1">Нет владельца</option>
         {% for squad in squads %}
           <option value="{{ squad.id }}">{{ squad.name }} отряд</option>
