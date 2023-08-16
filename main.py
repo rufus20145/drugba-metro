@@ -121,9 +121,16 @@ def get_auth_page(request: Request):
     if token_str:
         token = parse_token(token_str)
         if token and token.is_valid():
-            return RedirectResponse("/profile", status_code=status.HTTP_302_FOUND)
-
-    return templates.TemplateResponse("login.html", {"request": request})
+            with alchemy.session_scope() as session:
+                query = sa.select(User).filter_by(username=token.username)
+                user = session.scalars(query).one_or_none()
+                if user:
+                    return RedirectResponse(
+                        "/profile", status_code=status.HTTP_302_FOUND
+                    )
+    response = templates.TemplateResponse("login.html", {"request": request})
+    response.delete_cookie("token")
+    return response
 
 
 @app.post(path="/login", response_class=JSONResponse)
@@ -166,15 +173,22 @@ def get_register_page(request: Request):
     if token_str:
         token = parse_token(token_str)
         if token and token.is_valid():
-            return RedirectResponse("/profile", status_code=status.HTTP_302_FOUND)
-
+            with alchemy.session_scope() as session:
+                query = sa.select(User).filter_by(username=token.username)
+                user = session.scalars(query).one_or_none()
+                if user:
+                    return RedirectResponse(
+                        "/profile", status_code=status.HTTP_302_FOUND
+                    )
     with alchemy.session_scope() as session:
         roles = [Roles.COUNSELOR, Roles.CAMPER]
         squads_q = sa.select(Squad)
         squads = list(session.scalars(squads_q))
-        return templates.TemplateResponse(
+        response = templates.TemplateResponse(
             "register.html", {"request": request, "roles": roles, "squads": squads}
         )
+        response.delete_cookie("token")
+        return response
 
 
 @app.post(path="/register", response_class=JSONResponse)
