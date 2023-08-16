@@ -303,6 +303,12 @@ def change_station_owner(
         if user.role != Roles.ADMIN and user.role != Roles.METHODIST:
             return no_permission
 
+        if squad_id == -1:
+            return JSONResponse(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                content={"message": "Возврат временно не поддерживается."},
+            )
+
         wallet_q = sa.select(Wallet).filter_by(squad_id=squad_id)
         wallet = session.scalars(wallet_q).one_or_none()
         if not wallet:

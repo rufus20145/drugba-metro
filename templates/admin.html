@@ -18,7 +18,7 @@
             if (xhr.status == 201) {
               messageField.style.color = 'green'
               messageField.innerHTML = resp.message
-            } else if (xhr.status == 401 || xhr.status == 400) {
+            } else if (xhr.status == 400 || xhr.status == 403 || xhr.status == 501) {
               messageField.style.display = 'block'
               messageField.style.color = 'red'
               messageField.innerHTML = resp.message
@@ -46,7 +46,7 @@
               messageField.style.display = 'block'
               messageField.style.color = 'green'
               messageField.innerHTML = resp.message
-            } else if (xhr.status == 401 || xhr.status == 400) {
+            } else if (xhr.status == 400 || xhr.status == 403) {
               messageField.style.display = 'block'
               messageField.style.color = 'red'
               messageField.innerHTML = resp.message
