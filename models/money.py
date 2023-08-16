@@ -74,7 +74,6 @@ class Transaction(Base):
 
 class Deposit(Transaction):
     __tablename__ = "deposits"
-
     __mapper_args__ = {"polymorphic_identity": TransactionType.DEPOSIT}
 
     id: Mapped[int] = mapped_column(ForeignKey("transactions.id"), primary_key=True)
@@ -86,7 +85,6 @@ class Deposit(Transaction):
 
 class Withdrawal(Transaction):
     __tablename__ = "withdrawals"
-
     __mapper_args__ = {"polymorphic_identity": TransactionType.WITHDRAWAL}
 
     id: Mapped[int] = mapped_column(ForeignKey("transactions.id"), primary_key=True)

@@ -4,11 +4,11 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="/static/css/main.css" />
-    <title>Отряд {{ squad.name }}</title>
+    <title>Состав {{ squad.name }}</title>
   </head>
   <body>
-    <h1>Отряд {{ squad.name }}</h1>
-    <h2>Баланс отряда: {{ '{:,}'.format(squad.wallet.current_balance).replace(',', ' ') }}</h2>
+    <h1>Состав {{ squad.name }}</h1>
+    <h2>Баланс состава: {{ '{:,}'.format(squad.wallet.current_balance).replace(',', ' ') }}</h2>
     <table class="ta-center tab-center" border="1" style="margin-top: 40px;">
       <tr>
         <th>Линия</th>
