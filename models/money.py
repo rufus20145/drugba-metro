@@ -48,6 +48,7 @@ class Transaction(Base):
     amount: Mapped[int] = mapped_column(Integer)
     timestamp: Mapped[dt.datetime] = mapped_column(DateTime)
     reason: Mapped[str] = mapped_column(String(100))
+    comment: Mapped[str] = mapped_column(String(250))
     status: Mapped[TransactionStatus] = mapped_column(Enum(TransactionStatus))
     made_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     made_by: Mapped["User"] = relationship(back_populates="transactions")
@@ -79,7 +80,11 @@ class Deposit(Transaction):
     id: Mapped[int] = mapped_column(ForeignKey("transactions.id"), primary_key=True)
 
     def execute(self):
+        old_balance = self.wallet.current_balance
         self.wallet.current_balance += self.amount
+        self.comment = (
+            f"+{self.amount}. ({old_balance} -> {self.wallet.current_balance})"
+        )
         self.status = TransactionStatus.COMPLETED
 
 
@@ -91,9 +96,14 @@ class Withdrawal(Transaction):
 
     def execute(self):
         if self.amount > self.wallet.current_balance:
+            self.comment = f"Недостаточно средств. Имеется {self.wallet.current_balance}, необходимо ещё {self.amount - self.wallet.current_balance}."
             self.status = TransactionStatus.FAILED
             raise ValueError(
                 f"{self.wallet.squad.number} отряду недостаточно средств. Необходимо ещё {self.amount - self.wallet.current_balance} дружбанов."
             )
+        old_balance = self.wallet.current_balance
         self.wallet.current_balance -= self.amount
+        self.comment = (
+            f"Списано {self.amount}. ({old_balance} -> {self.wallet.current_balance})"
+        )
         self.status = TransactionStatus.COMPLETED
