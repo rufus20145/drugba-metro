@@ -284,6 +284,8 @@ def get_profile_page(request: Request):
         squads_q = sa.select(Squad)
         squads = list(session.scalars(squads_q))
 
+        transactions: list[Transaction] = []
+
         if (
             user.role == Roles.CAMPER
             or user.role == Roles.METRO_CAMPER
@@ -307,7 +309,7 @@ def get_profile_page(request: Request):
                 "free_stations": free_stations,
                 "squads": squads,
                 "purchase_requests": purchase_requests,
-                "transactions": transactions,  # type: ignore
+                "transactions": transactions,
             },
         )
 
