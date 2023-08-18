@@ -9,6 +9,7 @@ from models.base import Base
 
 if TYPE_CHECKING:
     from models.camp import Squad
+    from models.metro import Station
     from models.users import User
 
 
@@ -103,3 +104,21 @@ class Withdrawal(Transaction):
         self.wallet.current_balance -= self.amount
         self.comment = f"Списание на сумму {self.amount}. Баланс: {old_balance} -> {self.wallet.current_balance}"
         self.status = TransactionStatus.COMPLETED
+
+
+class PurchaseRequestStatus(PythonEnum):
+    CREATED = "created"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class PurchaseRequest(Base):
+    __tablename__ = "purchase_requests"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    timestamp: Mapped[dt.datetime] = mapped_column(DateTime)
+    status: Mapped[PurchaseRequestStatus] = mapped_column(Enum(PurchaseRequestStatus))
+    squad_id: Mapped[int] = mapped_column(ForeignKey("squads.id"))
+    squad: Mapped["Squad"] = relationship(back_populates="purchase_requests")
+    station_id: Mapped[int] = mapped_column(ForeignKey("stations.id"))
+    station: Mapped["Station"] = relationship()

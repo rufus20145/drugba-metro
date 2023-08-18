@@ -58,4 +58,3 @@ class Station(Base):
         self.line = line
         if owner:
             self.owner = owner
-
