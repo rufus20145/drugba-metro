@@ -81,7 +81,7 @@ def get_bought_stations_page(request: Request):
 @app.get(path="/squad/{number}", response_class=HTMLResponse)
 def get_squad_info(request: Request, number: int):
     with alchemy.session_scope() as session:
-        squad_q = sa.select(Squad).filter_by(name=number)
+        squad_q = sa.select(Squad).filter_by(number=number)
         squad = session.scalars(squad_q).one_or_none()
         if not squad:
             raise HTTPException(
