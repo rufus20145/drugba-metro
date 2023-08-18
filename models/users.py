@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 class Roles(PythonEnum):  # уровни доступа
     ADMIN = "Администратор"  # 6
-    METHODIST = "Контролер"  # 5
+    METHODIST = "Контролёр"  # 5
     COUNSELOR = "Машинист"  # 4
     METRO_CAMPER = "metro_camper"  # 3 (специально для 4 отряда)
     CAMPER = "Пассажир"  # 2

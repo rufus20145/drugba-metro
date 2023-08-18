@@ -1,13 +1,209 @@
 <!DOCTYPE html>
+{% set ADMIN = 6 %}
+{% set METHODIST = 5 %}
+{% set COUNSELOR = 4 %}
+{% set METRO_CAMPER = 3 %}
+{% set CAMPER = 2 %}
+{% set USER = 1 %}
+
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Профиль</title>
+    <title>Личный кабинет</title>
   </head>
 
   <body>
-    <h1>{{ user.username }}</h1>
-    <a href="/logout"><button>Выйти</button></a>
+    <h1>{{ user.role.value }} {{ user.username }} {{ access_level }}</h1>
+    <br />
+    {% if access_level >= METHODIST %}
+      <script>
+        function chngOwner() {
+          event.preventDefault()
+        
+          var messageField = document.getElementById('ownerField')
+          var form = new FormData(document.forms.changeOwner)
+          var xhr = new XMLHttpRequest()
+          xhr.open('POST', '/admin/change-station-owner')
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+              var resp = JSON.parse(xhr.responseText)
+              if (xhr.status == 201) {
+                messageField.style.color = 'green'
+                messageField.innerHTML = resp.message
+              } else if (xhr.status == 400 || xhr.status == 403 || xhr.status == 501) {
+                messageField.style.display = 'block'
+                messageField.style.color = 'red'
+                messageField.innerHTML = resp.message
+              } else {
+                messageField.style.display = 'block'
+                messageField.style.color = 'red'
+                messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
+              }
+            }
+          }
+          xhr.send(form)
+        }
+        function adBalance() {
+          event.preventDefault()
+        
+          var messageField = document.getElementById('addField')
+          var form = new FormData(document.forms.addBalance)
+          var xhr = new XMLHttpRequest()
+          xhr.open('POST', '/admin/add-balance')
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+              var resp = JSON.parse(xhr.responseText)
+              if (xhr.status == 201) {
+                messageField.style.display = 'block'
+                messageField.style.color = 'green'
+                messageField.innerHTML = resp.message
+              } else if (xhr.status == 400 || xhr.status == 403) {
+                messageField.style.display = 'block'
+                messageField.style.color = 'red'
+                messageField.innerHTML = resp.message
+              } else {
+                messageField.style.display = 'block'
+                messageField.style.color = 'red'
+                messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
+              }
+            }
+          }
+          xhr.send(form)
+        }
+      </script>
+      <h2>Покупка станции:</h2>
+      <form name="changeOwner" onsubmit="chngOwner()">
+        <label for="chngStation">Станция:</label>
+        <select name="station_id" id="chngStation">
+          <option hidden disabled selected value="">выберите станцию</option>
+          {% for station in stations %}
+            <option value="{{ station.id }}">{{ station.line.number }} {{ station.name }}</option>
+          {% endfor %}
+        </select>
+        <label for="chngSquad">Новый владелец:</label>
+        <select name="squad_id" id="chngSquad">
+          <option hidden disabled selected value="">выберите отряд</option>
+          <option value="-1">Нет владельца</option>
+          {% for squad in squads %}
+            <option value="{{ squad.id }}">{{ squad.name }} отряд</option>
+          {% endfor %}
+        </select>
+        <input type="submit" value="Изменить" />
+      </form>
+
+      <div id="ownerField"></div>
+      <br />
+
+      <h2>Обновление балансов:</h2>
+      <form name="addBalance" onsubmit="adBalance()">
+        <label for="addSquad">Номер отряда:</label>
+        <select name="squad_id" id="addSquad" required>
+          <option hidden disabled selected value="">выберите отряд</option>
+          {% for squad in squads %}
+            <option value="{{ squad.id }}">{{ squad.name }}</option>
+          {% endfor %}
+        </select>
+
+        <fieldset>
+          <legend>Действие (списать или прибавить):</legend>
+          <label for="add_radio">Начислить</label>
+          <input type="radio" name="type" id="add_radio" value="deposit" checked />
+          <label for="sub_radio">Списать</label>
+          <input type="radio" name="type" id="sub_radio" value="withdraw" />
+        </fieldset>
+
+        <label for="addAmount">Сумма:</label>
+        <input type="number" name="amount" id="addAmount" required min="0" />
+        <label for="addReason">Основание:</label>
+        <input type="text" name="reason" id="addReason" />
+        <input type="submit" value="Применить" />
+      </form>
+
+      <div id="addField"></div>
+
+      <table border="1" style="margin-top: 40px;">
+        <tr>
+          <th>Создана</th>
+          <th>Станция</th>
+          <th>Отряд</th>
+          <th>Статус</th>
+        </tr>
+        {% for purchase_request in purchase_requests %}
+          <tr>
+            <td>{{ purchase_request.timestamp }}</td>
+            <td>{{ purchase_request.station.line.number }} {{ purchase_request.station.name }}</td>
+            <td>{{ purchase_request.squad.number }}</td>
+            <td>{{ purchase_request.status.value }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% endif %}
+
+    {% if access_level == COUNSELOR %}
+      <script>
+        function sendPurchaseRequest() {
+          event.preventDefault()
+        
+          var messageField = document.getElementById('purchaseRequestField')
+          var form = new FormData(document.forms.purchaseRequestForm)
+          var xhr = new XMLHttpRequest()
+          xhr.open('POST', '/create-purchase-request')
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+              var resp = JSON.parse(xhr.responseText)
+              if (xhr.status == 201) {
+                messageField.style.display = 'block'
+                messageField.style.color = 'green'
+                messageField.innerHTML = resp.message
+              } else if (xhr.status == 400 || xhr.status == 403) {
+                messageField.style.display = 'block'
+                messageField.style.color = 'red'
+                messageField.innerHTML = resp.message
+              } else {
+                messageField.style.display = 'block'
+                messageField.style.color = 'red'
+                messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
+              }
+            }
+          }
+          xhr.send(form)
+        }
+      </script>
+      <h2>Создание заявки на выкуп станции</h2>
+      <form name="purchaseRequestForm" onsubmit="sendPurchaseRequest()">
+        <input type="hidden" name="squad_id" value="{{ user.squad_id }}" />
+        <label for="purchaseStation">Станция:</label>
+        <select name="station_id" id="purchaseStation" required>
+          <option hidden disabled selected value="">выберите</option>
+          {% for station in free_stations %}
+            <option value="{{ station.id }}">{{ station.line.number }} {{ station.name }}</option>
+          {% endfor %}
+        </select>
+        <input type="submit" value="Создать заявку" />
+      </form>
+      <div id="purchaseRequestField"></div>
+      <table border="1" style="margin-top: 40px;">
+        <caption>Банковские операции</caption>
+        <tr>
+          <th>Тип</th>
+          <th>Сумма</th>
+          <th>Дата</th>
+          <th>Комментарий</th>
+          <th>Автор</th>
+        </tr>
+        {% for transaction in transactions %}
+          <tr>
+            <td>{{ transaction.type.value }}</td>
+            <td>{{ '{:,}'.format(transaction.amount).replace(',', ' ') }}</td>
+            <td>{{ transaction.timestamp }}</td>
+            <td>{{ transaction.reason }}</td>
+            <td>{{ transaction.made_by.username }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% endif %}
+
+    <a href="/logout"><button style="margin-top: 40px;">Выйти</button></a>
   </body>
 </html>

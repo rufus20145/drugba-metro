@@ -14,8 +14,15 @@ from passlib.context import CryptContext
 from db import Alchemy
 from models.camp import Squad
 from models.metro import Line, Station
-from models.money import Deposit, Transaction, TransactionStatus, Wallet, Withdrawal
-from models.users import Camper, Counselor, Roles, Token, User
+from models.money import (
+    Deposit,
+    PurchaseRequest,
+    Transaction,
+    TransactionStatus,
+    Wallet,
+    Withdrawal,
+)
+from models.users import Camper, Counselor, MetroCamper, Roles, Token, User
 
 url = os.getenv("DATABASE_URL")
 if not url:
@@ -263,24 +270,45 @@ def get_profile_page(request: Request):
         if not user:
             return login_redirect
 
-        if user.role == Roles.ADMIN or user.role == Roles.METHODIST:
-            stations_q = sa.select(Station)
-            stations = list(session.scalars(stations_q))
+        access_level = user.get_access_level()
 
-            squads_q = sa.select(Squad)
-            squads = list(session.scalars(squads_q))
-            return templates.TemplateResponse(
-                "admin.html",
-                {
-                    "request": request,
-                    "user": user,
-                    "stations": stations,
-                    "squads": squads,
-                },
+        stations_q = sa.select(Station)
+        stations = list(session.scalars(stations_q))
+
+        free_stations_q = sa.select(Station).filter_by(owner_id=None)
+        free_stations = list(session.scalars(free_stations_q))
+
+        purchase_requests = sa.select(PurchaseRequest)
+        purchase_requests = list(session.scalars(purchase_requests))
+
+        squads_q = sa.select(Squad)
+        squads = list(session.scalars(squads_q))
+
+        if (
+            user.role == Roles.CAMPER
+            or user.role == Roles.METRO_CAMPER
+            or user.role == Roles.COUNSELOR
+        ):
+            user_2: Camper | MetroCamper | Counselor = user  # type: ignore
+            transactions_q = (
+                sa.select(Transaction)
+                .filter_by(wallet_id=user_2.squad.wallet.id)
+                .filter_by(status=TransactionStatus.COMPLETED)
             )
+            transactions = list(session.scalars(transactions_q))
 
         return templates.TemplateResponse(
-            "profile.html", {"request": request, "user": user}
+            "profile.html",
+            {
+                "request": request,
+                "access_level": access_level,
+                "user": user,
+                "stations": stations,
+                "free_stations": free_stations,
+                "squads": squads,
+                "purchase_requests": purchase_requests,
+                "transactions": transactions,  # type: ignore
+            },
         )
 
 
@@ -289,6 +317,65 @@ def logout():
     response = RedirectResponse("/login", status_code=status.HTTP_302_FOUND)
     response.delete_cookie("token")
     return response
+
+
+@app.post(path="/create-purchase-request", response_class=JSONResponse)
+def create_purchase_request(
+    request: Request,
+    station_id: Annotated[int, Form()],
+    squad_id: Annotated[int, Form()],
+):
+    no_permission = JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN, content={"message": "No permission"}
+    )
+    token_str = request.cookies.get("token")
+    if not token_str:
+        return no_permission
+    token = parse_token(token_str)
+    if not token:
+        return no_permission
+    if not token.is_valid():
+        return no_permission
+
+    with alchemy.session_scope() as session:
+        user_q = sa.select(User).filter_by(username=token.username)
+        user = session.scalars(user_q).one_or_none()
+        if not user:
+            return no_permission
+
+        if user.role != Roles.COUNSELOR and user.role != Roles.METRO_CAMPER:
+            return no_permission
+        user_2: Counselor | MetroCamper = user  # type: ignore
+        print(f"station_id: {station_id} squad_id: {squad_id}")
+        requests_q = sa.select(PurchaseRequest).filter_by(
+            squad_id=squad_id, station_id=station_id
+        )
+        requests = list(session.scalars(requests_q))
+        if requests:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"message": "Вы уже отправили эту заявку."},
+            )
+        requests2_q = sa.select(PurchaseRequest).filter_by(station_id=station_id)
+        requests2 = list(session.scalars(requests2_q))
+        if requests2:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"message": "Заявку на эту станцию уже отправил другой отряд."},
+            )
+        station_q = sa.select(Station).filter_by(id=station_id)
+        station = session.scalars(station_q).one_or_none()
+        if not station:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"message": "Станция не найдена"},
+            )
+        purchase_request = PurchaseRequest(user_2.squad, station)
+        session.add(purchase_request)
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={"message": f"Заявка на покупку станции {station.name} создана."},
+        )
 
 
 @app.post(path="/admin/change-station-owner", response_class=JSONResponse)
