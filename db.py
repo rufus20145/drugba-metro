@@ -30,53 +30,6 @@ class Alchemy:
         finally:
             session.close()
 
-    def change_station_owner(
-        self, station_id: int, new_owner_id: int | None, session: so.Session
-    ) -> int:
-        if new_owner_id == -1:
-            new_owner_id = None
-
-        query = sa.select(Station).where(Station.id == station_id)
-        old_owner_id = session.scalars(query).one().owner_id
-        query = (
-            sa.update(Station)
-            .where(Station.id == station_id)
-            .values(owner_id=new_owner_id)
-        )
-        session.execute(query)
-        session.commit()
-        return old_owner_id
-
-    def get_station_name(self, station_id: int, session: so.Session) -> str:
-        query = sa.select(Station).where(Station.id == station_id)
-        station = session.scalars(query).one()
-        return station.name
-
-    def get_station_price(self, station_id: int, session: so.Session) -> int:
-        query = sa.select(Station).where(Station.id == station_id)
-        station = session.scalars(query).one()
-        return station.initial_price
-
-    def get_all_stations(self, session: so.Session) -> List[Station]:
-        query = sa.select(Station)
-        stations = list(session.scalars(query))
-        return stations
-
-    def add_balance(self, squad_number: int, amount: int, session: so.Session) -> int:
-        session.begin()
-        query = sa.Select(Squad).where(Squad.name == str(squad_number))
-        squad: Squad = session.scalars(query).one()
-        old_balance = squad.wallet.current_balance
-        squad.wallet.current_balance += amount
-        session.merge(squad)
-        session.commit()
-        return old_balance
-
-    def get_wallet_by_id(self, wallet_id: int, session: so.Session) -> Wallet:
-        query = sa.select(Wallet).where(Wallet.id == wallet_id)
-        wallet = session.scalars(query).one()
-        return wallet
-
 
 # тестовые прогоны алхимии
 if __name__ == "__main__":
