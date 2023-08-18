@@ -12,13 +12,14 @@ if TYPE_CHECKING:
     from models.money import Transaction
 
 
-class Roles(PythonEnum):
-    ADMIN = "admin"
-    METHODIST = "Контролер"
-    COUNSELOR = "Машинист"
-    CAMPER = "Пассажир"
-    METRO_CAMPER = "metro_camper" # специально для 4 отряда, где ребенок отвечает за метро
-    USER = "user"
+class Roles(PythonEnum):  # уровни доступа
+    ADMIN = "Администратор"  # 6
+    METHODIST = "Контролёр"  # 5
+    COUNSELOR = "Машинист"  # 4
+    METRO_CAMPER = "metro_camper"  # 3 (специально для 4 отряда)
+    CAMPER = "Пассажир"  # 2
+    USER = "user"  # 1
+    ANONYMOUS = "anonymous"  # 0
 
 
 class User(Base):
@@ -43,6 +44,21 @@ class User(Base):
         self.username = username
         self.pwd_hash = pwd_hash
         self.role = role if role else Roles.USER
+
+    def get_access_level(self) -> int:
+        if self.role is Roles.ADMIN:
+            return 6
+        if self.role is Roles.METHODIST:
+            return 5
+        if self.role is Roles.COUNSELOR:
+            return 4
+        if self.role is Roles.METRO_CAMPER:
+            return 3
+        if self.role is Roles.CAMPER:
+            return 2
+        if self.role is Roles.USER:
+            return 1
+        return 0
 
 
 class Admin(User):
