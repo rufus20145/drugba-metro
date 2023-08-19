@@ -422,6 +422,7 @@ def create_purchase_request(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={"message": "Станция не найдена"},
             )
+        print(datetime.now())
         if datetime.now() < available_after or datetime.now() > available_until:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
