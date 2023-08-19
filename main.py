@@ -4,7 +4,7 @@ from typing import Annotated, Any
 
 import sqlalchemy as sa
 import uvicorn
-from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
+from fastapi import FastAPI, Form, HTTPException, Request, status
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -95,15 +95,9 @@ def get_squad_info(request: Request, number: int):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Состава с таким номером не найдено",
             )
-        transactions_q = (
-            sa.select(Transaction)
-            .filter_by(wallet_id=squad.wallet.id)
-            .filter_by(status=TransactionStatus.COMPLETED)
-        )
-        transactions = list(session.scalars(transactions_q))
         return templates.TemplateResponse(
             "squad.html",
-            {"request": request, "squad": squad, "transactions": transactions},
+            {"request": request, "squad": squad},
         )
 
 
@@ -348,7 +342,11 @@ def create_purchase_request(
         if user.role != Roles.COUNSELOR and user.role != Roles.METRO_CAMPER:
             return no_permission
         user_2: Counselor | MetroCamper = user  # type: ignore
-        print(f"station_id: {station_id} squad_id: {squad_id}")
+        if user_2.squad.id != squad_id:
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"message": "Нельзя отправить заявку от имени другого отряда"},
+            )
         requests_q = sa.select(PurchaseRequest).filter_by(
             squad_id=squad_id, station_id=station_id
         )
