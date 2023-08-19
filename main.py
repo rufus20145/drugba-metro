@@ -44,6 +44,9 @@ templates = Jinja2Templates(directory="templates")
 pwd_context = CryptContext(schemes=["bcrypt"], bcrypt__rounds=8)
 alchemy = Alchemy(url)
 
+available_after = datetime.strptime(os.getenv("AVAILABLE_AFTER") or "21:30", "%H:%M")
+available_until = datetime.strptime(os.getenv("AVAILABLE_UNTIL") or "23:00", "%H:%M")
+
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY is not set")
@@ -418,6 +421,13 @@ def create_purchase_request(
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={"message": "Станция не найдена"},
+            )
+        if datetime.now() < available_after or datetime.now() > available_until:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "message": f"Создать заявку можно только в промежутке {available_after.strftime('%H:%M')} - {available_until.strftime('%H:%M')}."
+                },
             )
         purchase_request = PurchaseStationRequest(user_2.squad, station)
         session.add(purchase_request)
