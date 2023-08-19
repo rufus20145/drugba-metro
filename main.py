@@ -16,7 +16,7 @@ from models.camp import Squad
 from models.metro import Line, Station
 from models.money import (
     Deposit,
-    PurchaseRequest,
+    PurchaseStationRequest,
     Transaction,
     TransactionStatus,
     Wallet,
@@ -318,7 +318,7 @@ def get_profile_page(request: Request):
         free_stations_q = sa.select(Station).filter_by(owner_id=None)
         free_stations = list(session.scalars(free_stations_q))
 
-        purchase_requests = sa.select(PurchaseRequest)
+        purchase_requests = sa.select(PurchaseStationRequest)
         purchase_requests = list(session.scalars(purchase_requests))
 
         squads_q = sa.select(Squad)
@@ -393,7 +393,7 @@ def create_purchase_request(
                 status_code=status.HTTP_403_FORBIDDEN,
                 content={"message": "Нельзя отправить заявку от имени другого отряда"},
             )
-        requests_q = sa.select(PurchaseRequest).filter_by(
+        requests_q = sa.select(PurchaseStationRequest).filter_by(
             squad_id=squad_id, station_id=station_id
         )
         requests = list(session.scalars(requests_q))
@@ -402,7 +402,7 @@ def create_purchase_request(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={"message": "Вы уже отправили эту заявку."},
             )
-        requests2_q = sa.select(PurchaseRequest).filter_by(station_id=station_id)
+        requests2_q = sa.select(PurchaseStationRequest).filter_by(station_id=station_id)
         requests2 = list(session.scalars(requests2_q))
         if requests2:
             return JSONResponse(
@@ -416,7 +416,7 @@ def create_purchase_request(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={"message": "Станция не найдена"},
             )
-        purchase_request = PurchaseRequest(user_2.squad, station)
+        purchase_request = PurchaseStationRequest(user_2.squad, station)
         session.add(purchase_request)
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,

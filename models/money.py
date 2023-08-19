@@ -106,35 +106,54 @@ class Withdrawal(Transaction):
         self.status = TransactionStatus.COMPLETED
 
 
-class PurchaseRequestStatus(PythonEnum):
+class RequestType(PythonEnum):
+    STATION_PURCHASE = "Покупка станции"
+    MONEY_TRANSFER = "Перевод денег"
+    STATION_RESELL = "Перепродажа станции"
+
+
+class RequestStatus(PythonEnum):
     CREATED = "Создана"
     APPROVED = "Выполнена"
     REJECTED = "Отклонена"
 
 
-class PurchaseRequest(Base):
-    __tablename__ = "purchase_requests"
+class SquadRequest(Base):
+    __tablename__ = "requests"
+    __mapper_args__ = {"polymorphic_on": "type"}
 
     id: Mapped[int] = mapped_column(primary_key=True)
     timestamp: Mapped[dt.datetime] = mapped_column(
         DateTime, default=dt.datetime.now, nullable=False
     )
-    status: Mapped[PurchaseRequestStatus] = mapped_column(
-        Enum(PurchaseRequestStatus),
-        default=PurchaseRequestStatus.CREATED,
+    status: Mapped[RequestStatus] = mapped_column(
+        Enum(RequestStatus),
+        default=RequestStatus.CREATED,
         nullable=False,
     )
+    type: Mapped[RequestType] = mapped_column(Enum(RequestType))
     squad_id: Mapped[int] = mapped_column(ForeignKey("squads.id"), nullable=False)
     squad: Mapped["Squad"] = relationship(back_populates="purchase_requests")
-    station_id: Mapped[int] = mapped_column(ForeignKey("stations.id"), nullable=False)
-    station: Mapped["Station"] = relationship()
 
     def __init__(
         self,
         squad: "Squad",
-        station: "Station",
+        type: RequestType,
     ):
         self.timestamp = dt.datetime.now()
-        self.status = PurchaseRequestStatus.CREATED
+        self.status = RequestStatus.CREATED
         self.squad = squad
+        self.type = type
+
+
+class PurchaseStationRequest(SquadRequest):
+    __tablename__ = "purchase_station_requests"
+    __mapper_args__ = {"polymorphic_identity": RequestType.STATION_PURCHASE}
+
+    id: Mapped[int] = mapped_column(ForeignKey("requests.id"), primary_key=True)
+    station_id: Mapped[int] = mapped_column(ForeignKey("stations.id"), nullable=False)
+    station: Mapped["Station"] = relationship()
+
+    def __init__(self, squad: "Squad", station: "Station"):
+        super().__init__(squad, RequestType.STATION_PURCHASE)
         self.station = station
