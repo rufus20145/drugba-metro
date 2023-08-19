@@ -7,7 +7,7 @@ from models.base import Base
 
 if TYPE_CHECKING:
     from models.metro import Station
-    from models.money import PurchaseRequest, Wallet
+    from models.money import PurchaseStationRequest, Wallet
     from models.users import Camper, Counselor, Methodist
 
 
@@ -37,7 +37,7 @@ class Squad(Base):
     wallet: Mapped["Wallet"] = relationship(back_populates="squad")
     counselors: Mapped[List["Counselor"]] = relationship(back_populates="squad")
     campers: Mapped[List["Camper"]] = relationship(back_populates="squad")
-    purchase_requests: Mapped[List["PurchaseRequest"]] = relationship(
+    purchase_requests: Mapped[List["PurchaseStationRequest"]] = relationship(
         back_populates="squad"
     )
 
