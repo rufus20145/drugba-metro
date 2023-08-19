@@ -17,6 +17,9 @@ from models.metro import Line, Station
 from models.money import (
     Deposit,
     PurchaseStationRequest,
+    RequestStatus,
+    RequestType,
+    SquadRequest,
     Transaction,
     TransactionStatus,
     Wallet,
@@ -602,6 +605,67 @@ def add_balance(
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST, content={"message": str(e)}
             )
+
+
+@app.post(path="/process-request", response_class=JSONResponse)
+def process_request(
+    request: Request,
+    request_id: Annotated[int, Form()],
+):
+    no_permission = JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN, content={"message": "No permission"}
+    )
+    token_str = request.cookies.get("token")
+    if not token_str:
+        return no_permission
+
+    token = parse_token(token_str)
+    if not token:
+        return no_permission
+
+    if not token.is_valid():
+        return no_permission
+
+    with alchemy.session_scope() as session:
+        user_q = sa.select(User).filter_by(username=token.username)
+        user = session.scalars(user_q).one_or_none()
+        if not user:
+            return no_permission
+        if user.role != Roles.ADMIN and user.role != Roles.METHODIST:
+            return no_permission
+
+        squad_request_q = sa.select(SquadRequest).filter_by(id=request_id)
+        squad_request = session.scalars(squad_request_q).one_or_none()
+
+        if not squad_request:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"message": "Запрос не найден"},
+            )
+
+        if squad_request.status != RequestStatus.CREATED:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"message": "Запрос уже был обработан."},
+            )
+
+        match squad_request.type:
+            case RequestType.STATION_PURCHASE:
+                purchase_request: PurchaseStationRequest = squad_request  # type: ignore
+                response = change_station_owner(
+                    request, purchase_request.station_id, purchase_request.squad_id
+                )
+                if response.status_code == status.HTTP_201_CREATED:
+                    purchase_request.status = RequestStatus.APPROVED
+                    session.merge(purchase_request)
+                return response
+            case _:
+                return JSONResponse(
+                    status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                    content={
+                        "message": "Обработка других запросов будет реализована позже."
+                    },
+                )
 
 
 # ======================================================================================

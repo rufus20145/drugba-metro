@@ -99,6 +99,34 @@
           }
           xhr.send(form)
         }
+        function sendPurchaseRequest(requestId) {
+          var messageField = document.getElementById('ownerField')
+          var statusTd = document.getElementById('status_' + requestId)
+          var xhr = new XMLHttpRequest()
+          xhr.open('POST', '/process-request')
+          xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded') // Set the content type
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+              var resp = JSON.parse(xhr.responseText)
+              if (xhr.status == 201) {
+                messageField.style.display = 'block'
+                messageField.style.color = 'green'
+                messageField.innerHTML = resp.message
+                statusTd.innerHTML = 'Выполнена'
+              } else if (xhr.status == 400 || xhr.status == 403 || xhr.status == 501) {
+                messageField.style.display = 'block'
+                messageField.style.color = 'red'
+                messageField.innerHTML = resp.message
+              } else {
+                messageField.style.display = 'block'
+                messageField.style.color = 'red'
+                messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
+              }
+            }
+          }
+          var data = 'request_id=' + encodeURIComponent(requestId)
+          xhr.send(data)
+        }
       </script>
       <h2>Покупка станции:</h2>
       <form name="changeOwner" onsubmit="chngOwner()">
@@ -174,13 +202,17 @@
           <th>Станция</th>
           <th>Отряд</th>
           <th>Статус</th>
+          <th>Действия</th>
         </tr>
         {% for purchase_request in purchase_requests %}
           <tr>
             <td>{{ purchase_request.timestamp }}</td>
             <td>{{ purchase_request.station.line.number }} {{ purchase_request.station.name }}</td>
             <td>{{ purchase_request.squad.number }}</td>
-            <td>{{ purchase_request.status.value }}</td>
+            <td id="status_{{ purchase_request.id }}">{{ purchase_request.status.value }}</td>
+            <td>
+              <button onclick="sendPurchaseRequest({{ purchase_request.id }})">Подтвердить</button>
+            </td>
           </tr>
         {% endfor %}
       </table>
