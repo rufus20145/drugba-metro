@@ -4,7 +4,7 @@ from typing import Annotated, Any
 
 import sqlalchemy as sa
 import uvicorn
-from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
+from fastapi import FastAPI, Form, HTTPException, Request, status
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -22,7 +22,15 @@ from models.money import (
     Wallet,
     Withdrawal,
 )
-from models.users import Camper, Counselor, MetroCamper, Roles, Token, User
+from models.users import (
+    Camper,
+    Counselor,
+    MetroCamper,
+    RegisterCode,
+    Roles,
+    Token,
+    User,
+)
 
 url = os.getenv("DATABASE_URL")
 if not url:
@@ -95,15 +103,9 @@ def get_squad_info(request: Request, number: int):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Состава с таким номером не найдено",
             )
-        transactions_q = (
-            sa.select(Transaction)
-            .filter_by(wallet_id=squad.wallet.id)
-            .filter_by(status=TransactionStatus.COMPLETED)
-        )
-        transactions = list(session.scalars(transactions_q))
         return templates.TemplateResponse(
             "squad.html",
-            {"request": request, "squad": squad, "transactions": transactions},
+            {"request": request, "squad": squad},
         )
 
 
@@ -203,6 +205,7 @@ def register(
     request: Request,
     username: Annotated[str, Form()],
     password: Annotated[str, Form()],
+    code: Annotated[int, Form()],
     role_str: Annotated[str, Form()],
     squad_number: Annotated[int, Form()],
 ):
@@ -230,10 +233,47 @@ def register(
                 content={"message": "Состава с таким номером не найдено"},
             )
 
+        reg_code_q = sa.select(RegisterCode).filter_by(code=code)
+        reg_code = session.scalars(reg_code_q).one_or_none()
+
+        if not reg_code:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"message": "Код не найден"},
+            )
+
         match role:
             case Roles.COUNSELOR:
+                if reg_code.created_by.role != Roles.METHODIST:
+                    return JSONResponse(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        content={
+                            "message": "Данный код не предназначен для регистрации с данной ролью"
+                        },
+                    )
+                if reg_code.target_squad.number != squad.number:
+                    return JSONResponse(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        content={
+                            "message": "Данный код предназначен для другого состава"
+                        },
+                    )
                 new_user = Counselor(username, pwd_context.hash(password), squad)
             case Roles.CAMPER:
+                if reg_code.created_by.role != Roles.COUNSELOR:
+                    return JSONResponse(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        content={
+                            "message": "Данный код не предназначен для регистрации с данной ролью"
+                        },
+                    )
+                if reg_code.target_squad.number != squad.number:
+                    return JSONResponse(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        content={
+                            "message": "Данный код предназначен для другого состава"
+                        },
+                    )
                 new_user = Camper(username, pwd_context.hash(password), squad)
             case _:
                 return JSONResponse(
@@ -348,7 +388,11 @@ def create_purchase_request(
         if user.role != Roles.COUNSELOR and user.role != Roles.METRO_CAMPER:
             return no_permission
         user_2: Counselor | MetroCamper = user  # type: ignore
-        print(f"station_id: {station_id} squad_id: {squad_id}")
+        if user_2.squad.id != squad_id:
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"message": "Нельзя отправить заявку от имени другого отряда"},
+            )
         requests_q = sa.select(PurchaseRequest).filter_by(
             squad_id=squad_id, station_id=station_id
         )
@@ -377,6 +421,47 @@ def create_purchase_request(
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
             content={"message": f"Заявка на покупку станции {station.name} создана."},
+        )
+
+
+@app.post(path="/get-code", response_class=JSONResponse)
+def get_code(
+    request: Request,
+    squad_id: Annotated[int, Form()],
+):
+    no_permission = JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN, content={"message": "No permission"}
+    )
+    token_str = request.cookies.get("token")
+    if not token_str:
+        return no_permission
+    token = parse_token(token_str)
+    if not token:
+        return no_permission
+    if not token.is_valid():
+        return no_permission
+
+    with alchemy.session_scope() as session:
+        user_q = sa.select(User).filter_by(username=token.username)
+        user = session.scalars(user_q).one_or_none()
+        if not user:
+            return no_permission
+
+        target_squad_q = sa.select(Squad).filter_by(id=squad_id)
+        target_squad = session.scalars(target_squad_q).one_or_none()
+        if not target_squad:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"message": "Состава с таким номером не найдено"},
+            )
+
+        register_code = RegisterCode(user, target_squad)
+        session.add(register_code)
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content={
+                "message": f"Код для регистрации в {target_squad.number} составе — {register_code.code}."
+            },
         )
 
 
