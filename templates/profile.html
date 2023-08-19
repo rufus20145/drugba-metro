@@ -289,7 +289,7 @@
 
     {% if access_level == COUNSELOR or access_level == METRO_CAMPER or access_level == CAMPER %}
       <h2>Текущий баланс {{ user.squad.wallet.current_balance }} дружбанов</h2>
-      <h2>Вы владеете {{ user.squad.stations|length }} станциями</h2>
+      <h2>Количество ваших станций: {{ user.squad.stations|length }}</h2>
       <table border="1" style="margin-top: 40px;">
         <tr>
           <th>Линия</th>
