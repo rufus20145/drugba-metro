@@ -141,7 +141,7 @@
       </table>
     {% endif %}
 
-    {% if access_level == COUNSELOR %}
+    {% if access_level == COUNSELOR or access_level == METRO_CAMPER %}
       <script>
         function sendPurchaseRequest() {
           event.preventDefault()
