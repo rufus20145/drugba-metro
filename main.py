@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 from typing import Annotated, Any
 
 import sqlalchemy as sa
@@ -44,8 +44,8 @@ templates = Jinja2Templates(directory="templates")
 pwd_context = CryptContext(schemes=["bcrypt"], bcrypt__rounds=8)
 alchemy = Alchemy(url)
 
-available_after = datetime.strptime(os.getenv("AVAILABLE_AFTER") or "21:30", "%H:%M")
-available_until = datetime.strptime(os.getenv("AVAILABLE_UNTIL") or "23:00", "%H:%M")
+available_after = time(20, 30)
+available_until = time(23, 30)
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
@@ -422,8 +422,8 @@ def create_purchase_request(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={"message": "Станция не найдена"},
             )
-        print(datetime.now())
-        if datetime.now() < available_after or datetime.now() > available_until:
+        current_time = datetime.now().time()
+        if current_time < available_after or current_time > available_until:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={
