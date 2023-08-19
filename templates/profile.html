@@ -71,6 +71,34 @@
           }
           xhr.send(form)
         }
+        function getCode() {
+          event.preventDefault()
+        
+          var messageField = document.getElementById('getCodeField')
+          var form = new FormData(document.forms.getCodeForm)
+          console.log(form.get('squad_id'))
+          var xhr = new XMLHttpRequest()
+          xhr.open('POST', '/get-code')
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+              var resp = JSON.parse(xhr.responseText)
+              if (xhr.status == 201) {
+                messageField.style.display = 'block'
+                messageField.style.color = 'green'
+                messageField.innerHTML = resp.message
+              } else if (xhr.status == 400 || xhr.status == 403) {
+                messageField.style.display = 'block'
+                messageField.style.color = 'red'
+                messageField.innerHTML = resp.message
+              } else {
+                messageField.style.display = 'block'
+                messageField.style.color = 'red'
+                messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
+              }
+            }
+          }
+          xhr.send(form)
+        }
       </script>
       <h2>Покупка станции:</h2>
       <form name="changeOwner" onsubmit="chngOwner()">
@@ -86,7 +114,7 @@
           <option hidden disabled selected value="">выберите отряд</option>
           <option value="-1">Нет владельца</option>
           {% for squad in squads %}
-            <option value="{{ squad.id }}">{{ squad.name }} отряд</option>
+            <option value="{{ squad.id }}">{{ squad.number }} отряд</option>
           {% endfor %}
         </select>
         <input type="submit" value="Изменить" />
@@ -101,7 +129,7 @@
         <select name="squad_id" id="addSquad" required>
           <option hidden disabled selected value="">выберите отряд</option>
           {% for squad in squads %}
-            <option value="{{ squad.id }}">{{ squad.name }}</option>
+            <option value="{{ squad.id }}">{{ squad.number }}</option>
           {% endfor %}
         </select>
 
@@ -122,8 +150,25 @@
 
       <div id="addField"></div>
 
+      <br />
+      <h2>Получение кода для регистрации вожатых:</h2>
+      <form name="getCodeForm" onsubmit="getCode()">
+        <label for="squad_id">Отряд:</label>
+        <select name="squad_id" id="squad_id" required>
+          <option hidden disabled selected value="">выберите отряд</option>
+          {% for squad in squads %}
+            <option value="{{ squad.id }}">{{ squad.number }}</option>
+          {% endfor %}
+        </select>
+        <input type="submit" value="Получить код" />
+      </form>
+
+      <div id="getCodeField" style="margin-top:15px;"></div>
+
       <table border="1" style="margin-top: 40px;">
-        <caption>Заявки на покупку станций</caption>
+        <caption>
+          <h2>Заявки на покупку станций</h2>
+        </caption>
         <tr>
           <th>Создана</th>
           <th>Станция</th>
@@ -170,6 +215,34 @@
           }
           xhr.send(form)
         }
+        function getCode() {
+          event.preventDefault()
+        
+          var messageField = document.getElementById('getCodeField')
+          var form = new FormData(document.forms.getCodeForm)
+          console.log(form.get('squad_id'))
+          var xhr = new XMLHttpRequest()
+          xhr.open('POST', '/get-code')
+          xhr.onreadystatechange = function () {
+            if (xhr.readyState === XMLHttpRequest.DONE) {
+              var resp = JSON.parse(xhr.responseText)
+              if (xhr.status == 201) {
+                messageField.style.display = 'block'
+                messageField.style.color = 'green'
+                messageField.innerHTML = resp.message
+              } else if (xhr.status == 400 || xhr.status == 403) {
+                messageField.style.display = 'block'
+                messageField.style.color = 'red'
+                messageField.innerHTML = resp.message
+              } else {
+                messageField.style.display = 'block'
+                messageField.style.color = 'red'
+                messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
+              }
+            }
+          }
+          xhr.send(form)
+        }
       </script>
       <h2>Создание заявки на выкуп станции</h2>
       <form name="purchaseRequestForm" onsubmit="sendPurchaseRequest()">
@@ -184,8 +257,17 @@
         <input type="submit" value="Создать заявку" />
       </form>
       <div id="purchaseRequestField"></div>
-      <table border="1" style="margin-top: 40px;">
-        <caption>Банковские операции</caption>
+
+      <h2>Получение кода для регистрации пассажиров:</h2>
+      <form name="getCodeForm" onsubmit="getCode()">
+        <input type="hidden" name="squad_id" value="{{ user.squad_id }}" />
+        <input type="submit" value="Получить код" />
+      </form>
+      <div id="getCodeField" style="margin-top:15px;"></div>
+      <table border="1">
+        <caption>
+          <h2>Банковские операции</h2>
+        </caption>
         <tr>
           <th>Тип</th>
           <th>Сумма</th>
@@ -200,6 +282,25 @@
             <td>{{ transaction.timestamp }}</td>
             <td>{{ transaction.reason }}</td>
             <td>{{ transaction.made_by.username }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% endif %}
+
+    {% if access_level == COUNSELOR or access_level == METRO_CAMPER or access_level == CAMPER %}
+      <h2>Текущий баланс {{ user.squad.wallet.current_balance }} дружбанов</h2>
+      <h2>Вы владеете {{ user.squad.stations|length }} станциями</h2>
+      <table border="1" style="margin-top: 40px;">
+        <tr>
+          <th>Линия</th>
+          <th>Название станции</th>
+          <th>Стоимость</th>
+        </tr>
+        {% for station in user.squad.stations %}
+          <tr>
+            <td>{{ station.line.number }}</td>
+            <td>{{ station.name }}</td>
+            <td>{{ '{:,}'.format(station.initial_price).replace(',', ' ') }}</td>
           </tr>
         {% endfor %}
       </table>

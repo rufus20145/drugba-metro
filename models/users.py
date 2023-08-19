@@ -1,3 +1,4 @@
+import random
 from datetime import datetime
 from enum import Enum as PythonEnum
 from typing import TYPE_CHECKING, List, Optional
@@ -16,7 +17,7 @@ class Roles(PythonEnum):  # уровни доступа
     ADMIN = "Администратор"  # 6
     METHODIST = "Контролёр"  # 5
     COUNSELOR = "Машинист"  # 4
-    METRO_CAMPER = "metro_camper"  # 3 (специально для 4 отряда)
+    METRO_CAMPER = "Старший пассажир"  # 3 (специально для 4 отряда)
     CAMPER = "Пассажир"  # 2
     USER = "user"  # 1
     ANONYMOUS = "anonymous"  # 0
@@ -117,6 +118,26 @@ class MetroCamper(Camper):
     __mapper_args__ = {"polymorphic_identity": Roles.METRO_CAMPER}
 
     id: Mapped[int] = mapped_column(ForeignKey("campers.id"), primary_key=True)
+
+
+class RegisterCode(Base):
+    __tablename__ = "register_codes"
+    __table_args__ = (UniqueConstraint("code", name="code_unique"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(6), nullable=False)
+    created_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_by: Mapped["User"] = relationship()
+    target_squad_id: Mapped[int] = mapped_column(ForeignKey("squads.id"))
+    target_squad: Mapped["Squad"] = relationship()
+
+    def __init__(self, created_by: "User", target_squad: "Squad"):
+        self.created_by = created_by
+        self.target_squad = target_squad
+        self.code = self.generate_code()
+
+    def generate_code(self):
+        return "".join([str(random.randint(0, 9)) for _ in range(6)])
 
 
 class Token:
