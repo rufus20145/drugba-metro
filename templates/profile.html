@@ -278,7 +278,6 @@
       </script>
       <h2>Создание заявки на выкуп станции</h2>
       <form name="purchaseRequestForm" onsubmit="sendPurchaseRequest()">
-        <input type="hidden" name="squad_id" value="{{ user.squad_id }}" />
         <label for="purchaseStation">Станция:</label>
         <select name="station_id" id="purchaseStation" required>
           <option hidden disabled selected value="">выберите</option>

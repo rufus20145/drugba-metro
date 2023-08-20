@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta, time
+from datetime import datetime, time, timedelta
 from typing import Annotated, Any
 
 import sqlalchemy as sa
@@ -371,7 +371,6 @@ def logout():
 def create_purchase_request(
     request: Request,
     station_id: Annotated[int, Form()],
-    squad_id: Annotated[int, Form()],
 ):
     no_permission = JSONResponse(
         status_code=status.HTTP_403_FORBIDDEN, content={"message": "No permission"}
@@ -394,26 +393,13 @@ def create_purchase_request(
         if user.role != Roles.COUNSELOR and user.role != Roles.METRO_CAMPER:
             return no_permission
         user_2: Counselor | MetroCamper = user  # type: ignore
-        if user_2.squad.id != squad_id:
-            return JSONResponse(
-                status_code=status.HTTP_403_FORBIDDEN,
-                content={"message": "Нельзя отправить заявку от имени другого отряда"},
-            )
-        requests_q = sa.select(PurchaseStationRequest).filter_by(
-            squad_id=squad_id, station_id=station_id
-        )
-        requests = list(session.scalars(requests_q))
-        if requests:
+        current_time = datetime.now().time()
+        if current_time < available_after or current_time > available_until:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                content={"message": "Вы уже отправили эту заявку."},
-            )
-        requests2_q = sa.select(PurchaseStationRequest).filter_by(station_id=station_id)
-        requests2 = list(session.scalars(requests2_q))
-        if requests2:
-            return JSONResponse(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                content={"message": "Заявку на эту станцию уже отправил другой отряд."},
+                content={
+                    "message": f"Создать заявку можно только в промежутке {available_after.strftime('%H:%M')} - {available_until.strftime('%H:%M')}."
+                },
             )
         station_q = sa.select(Station).filter_by(id=station_id)
         station = session.scalars(station_q).one_or_none()
@@ -422,12 +408,33 @@ def create_purchase_request(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={"message": "Станция не найдена"},
             )
-        current_time = datetime.now().time()
-        if current_time < available_after or current_time > available_until:
+        purchase_requests_q = sa.select(PurchaseStationRequest)
+        purchase_requests = list(session.scalars(purchase_requests_q))
+        sum = 0
+        for purchase_request in purchase_requests:
+            if purchase_request.station_id == station.id:
+                if purchase_request.squad_id == user_2.squad_id:
+                    return JSONResponse(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        content={"message": "Вы уже отправили эту заявку."},
+                    )
+                else:
+                    return JSONResponse(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        content={
+                            "message": "Заявку на эту станцию уже отправил другой отряд."
+                        },
+                    )
+            if (
+                purchase_request.status == RequestStatus.CREATED
+                and purchase_request.squad_id == user_2.squad_id
+            ):
+                sum += purchase_request.station.initial_price
+        if sum + station.initial_price > user_2.squad.wallet.current_balance:
             return JSONResponse(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 content={
-                    "message": f"Создать заявку можно только в промежутке {available_after.strftime('%H:%M')} - {available_until.strftime('%H:%M')}."
+                    "message": f"Вам не хватает дружбанов на эту станцию. Нужно ещё {sum + station.initial_price - user_2.squad.wallet.current_balance}."
                 },
             )
         purchase_request = PurchaseStationRequest(user_2.squad, station)
