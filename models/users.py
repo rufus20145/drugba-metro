@@ -130,10 +130,12 @@ class RegisterCode(Base):
     created_by: Mapped["User"] = relationship()
     target_squad_id: Mapped[int] = mapped_column(ForeignKey("squads.id"))
     target_squad: Mapped["Squad"] = relationship()
+    target_role: Mapped[Roles] = mapped_column(Enum(Roles), nullable=False)
 
-    def __init__(self, created_by: "User", target_squad: "Squad"):
+    def __init__(self, created_by: "User", target_squad: "Squad", target_role: Roles):
         self.created_by = created_by
         self.target_squad = target_squad
+        self.target_role = target_role
         self.code = self.generate_code()
 
     def generate_code(self):

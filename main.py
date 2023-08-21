@@ -476,12 +476,22 @@ def get_code(
                 content={"message": "Состава с таким номером не найдено"},
             )
 
-        register_code = RegisterCode(user, target_squad)
-        session.add(register_code)
+        if user.role == Roles.ADMIN or user.role == Roles.METHODIST:
+            target_role = Roles.COUNSELOR
+        else:
+            target_role = Roles.CAMPER
+
+        reg_code_q = sa.select(RegisterCode).filter_by(
+            target_squad_id=squad_id, target_role=target_role
+        )
+        reg_code = session.scalars(reg_code_q).one_or_none()
+        if not reg_code:
+            reg_code = RegisterCode(user, target_squad, target_role=target_role)
+            session.add(reg_code)
         return JSONResponse(
             status_code=status.HTTP_201_CREATED,
             content={
-                "message": f"Код для регистрации в {target_squad.number} составе — {register_code.code}."
+                "message": f"Код для регистрации в {target_squad.number} составе — {reg_code.code}."
             },
         )
 
