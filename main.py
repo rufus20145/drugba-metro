@@ -335,7 +335,7 @@ def get_profile_page(request: Request):
             transactions = list(session.scalars(transactions_q))
 
         return templates.TemplateResponse(
-            "/profile/profile.html",
+            "/profile.html",
             {
                 "request": request,
                 "access_level": access_level,
