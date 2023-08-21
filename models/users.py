@@ -14,13 +14,11 @@ if TYPE_CHECKING:
 
 
 class Roles(PythonEnum):  # уровни доступа
-    ADMIN = "Администратор"  # 6
-    METHODIST = "Контролёр"  # 5
-    COUNSELOR = "Машинист"  # 4
-    METRO_CAMPER = "Старший пассажир"  # 3 (специально для 4 отряда)
+    ADMIN = "Администратор"  # 5
+    METHODIST = "Контролёр"  # 4
+    COUNSELOR = "Машинист"  # 3
     CAMPER = "Пассажир"  # 2
     USER = "user"  # 1
-    ANONYMOUS = "anonymous"  # 0
 
 
 class User(Base):
@@ -40,26 +38,15 @@ class User(Base):
         self,
         username: str,
         pwd_hash: str,
-        role: Optional[Roles],
     ):
         self.username = username
         self.pwd_hash = pwd_hash
-        self.role = role if role else Roles.USER
 
     def get_access_level(self) -> int:
-        if self.role is Roles.ADMIN:
-            return 6
-        if self.role is Roles.METHODIST:
-            return 5
-        if self.role is Roles.COUNSELOR:
-            return 4
-        if self.role is Roles.METRO_CAMPER:
-            return 3
-        if self.role is Roles.CAMPER:
-            return 2
-        if self.role is Roles.USER:
-            return 1
-        return 0
+        role_values = [role.value for role in Roles]
+        index = role_values.index(self.role.value)
+        access_level = len(role_values) - index
+        return access_level
 
 
 class Admin(User):
@@ -69,7 +56,7 @@ class Admin(User):
     id: Mapped[int] = mapped_column(ForeignKey("users.id"), primary_key=True)
 
     def __init__(self, username: str, pwd_hash: str):
-        super().__init__(username, pwd_hash, Roles.ADMIN)
+        super().__init__(username, pwd_hash)
 
 
 class Methodist(User):
@@ -83,7 +70,7 @@ class Methodist(User):
     age_group: Mapped["AgeGroup"] = relationship(back_populates="methodist")
 
     def __init__(self, username: str, pwd_hash: str, age_group: "AgeGroup"):
-        super().__init__(username, pwd_hash, Roles.METHODIST)
+        super().__init__(username, pwd_hash)
         self.age_group = age_group
 
 
@@ -96,7 +83,7 @@ class Counselor(User):
     squad: Mapped["Squad"] = relationship(back_populates="counselors")
 
     def __init__(self, username: str, pwd_hash: str, squad: "Squad"):
-        super().__init__(username, pwd_hash, Roles.COUNSELOR)
+        super().__init__(username, pwd_hash)
         self.squad = squad
 
 
@@ -109,15 +96,8 @@ class Camper(User):
     squad: Mapped["Squad"] = relationship(back_populates="campers")
 
     def __init__(self, username: str, pwd_hash: str, squad: "Squad"):
-        super().__init__(username, pwd_hash, Roles.CAMPER)
+        super().__init__(username, pwd_hash)
         self.squad = squad
-
-
-class MetroCamper(Camper):
-    __tablename__ = "metro_campers"
-    __mapper_args__ = {"polymorphic_identity": Roles.METRO_CAMPER}
-
-    id: Mapped[int] = mapped_column(ForeignKey("campers.id"), primary_key=True)
 
 
 class RegisterCode(Base):

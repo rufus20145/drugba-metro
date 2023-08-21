@@ -25,15 +25,7 @@ from models.money import (
     Wallet,
     Withdrawal,
 )
-from models.users import (
-    Camper,
-    Counselor,
-    MetroCamper,
-    RegisterCode,
-    Roles,
-    Token,
-    User,
-)
+from models.users import Camper, Counselor, RegisterCode, Roles, Token, User
 
 url = os.getenv("DATABASE_URL")
 if not url:
@@ -332,12 +324,8 @@ def get_profile_page(request: Request):
 
         transactions: list[Transaction] = []
 
-        if (
-            user.role == Roles.CAMPER
-            or user.role == Roles.METRO_CAMPER
-            or user.role == Roles.COUNSELOR
-        ):
-            user_2: Camper | MetroCamper | Counselor = user  # type: ignore
+        if user.role == Roles.CAMPER or user.role == Roles.COUNSELOR:
+            user_2: Camper | Counselor = user  # type: ignore
             transactions_q = (
                 sa.select(Transaction)
                 .filter_by(wallet_id=user_2.squad.wallet.id)
@@ -346,7 +334,7 @@ def get_profile_page(request: Request):
             transactions = list(session.scalars(transactions_q))
 
         return templates.TemplateResponse(
-            "profile.html",
+            "/profile/profile.html",
             {
                 "request": request,
                 "access_level": access_level,
@@ -390,7 +378,7 @@ def create_purchase_request(
         if not user:
             return no_permission
 
-        if user.role != Roles.COUNSELOR and user.role != Roles.METRO_CAMPER:
+        if user.role != Roles.COUNSELOR:
             return no_permission
         user_2: Counselor | MetroCamper = user  # type: ignore
         current_time = datetime.now().time()
