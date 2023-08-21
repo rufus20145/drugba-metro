@@ -250,7 +250,7 @@ def register(
 
         match role:
             case Roles.COUNSELOR:
-                if reg_code.created_by.role != Roles.METHODIST:
+                if reg_code.target_role != Roles.COUNSELOR:
                     return JSONResponse(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         content={
@@ -266,7 +266,7 @@ def register(
                     )
                 new_user = Counselor(username, pwd_context.hash(password), squad)
             case Roles.CAMPER:
-                if reg_code.created_by.role != Roles.COUNSELOR:
+                if reg_code.target_role != Roles.CAMPER:
                     return JSONResponse(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         content={
