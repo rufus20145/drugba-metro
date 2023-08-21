@@ -154,6 +154,7 @@ def login(
         query = sa.select(User).filter_by(username=username)
         user = session.scalars(query).one_or_none()
         if not user:
+            pwd_context.dummy_verify()
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 content={"message": "Неверный логин или пароль"},
