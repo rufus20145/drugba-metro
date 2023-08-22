@@ -39,8 +39,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 pwd_context = CryptContext(schemes=["bcrypt"], bcrypt__rounds=8)
 
-available_after = time(20, 30)
-available_until = time(23, 31)
+available_after = time(20, 28)
+available_until = time(23, 37)
 
 
 SECRET_KEY = os.getenv("SECRET_KEY")
