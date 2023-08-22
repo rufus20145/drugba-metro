@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Личный кабинет</title>
+  </head>
+  <body>
+    <h1>{{ user.role.value }} {{ user.squad.number }} состава {{ user.username }}</h1>
+    <h2>Текущий баланс вашего состава: {{ '{:,}'.format(user.squad.wallet.current_balance).replace(',', ' ') }} дружбанов</h2>
+    <h2>Полный баланс: {{ '{:,}'.format(user.squad.get_full_balance()).replace(',', ' ') }} дружбанов (коэффициент за покупку всей линии пока не учитывается)</h2>
+    <table border="1">
+      <caption>
+        <h2 style="margin-top: 10px;">У вас {{ stations_str }}</h2>
+      </caption>
+      <tr>
+        <th>Линия</th>
+        <th>Название станции</th>
+        <th>Стоимость</th>
+      </tr>
+      {% for station in user.squad.stations %}
+        <tr>
+          <td>{{ station.line.number }}</td>
+          <td>{{ station.name }}</td>
+          <td>{{ '{:,}'.format(station.initial_price).replace(',', ' ') }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+
+    <a href="/logout"><button style="margin-top: 40px;">Выйти</button></a>
+  </body>
+</html>

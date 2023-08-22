@@ -44,3 +44,8 @@ class Squad(Base):
     def __init__(self, name: str, age_group: "AgeGroup"):
         self.name = name
         self.age_group = age_group
+
+    def get_full_balance(self):
+        return self.wallet.current_balance + sum(
+            station.initial_price for station in self.stations
+        )

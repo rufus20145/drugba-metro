@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Личный кабинет</title>
+    <script>
+      function sendPurchase() {
+        event.preventDefault()
+      
+        var messageField = document.getElementById('purchaseRequestField')
+        var balanceElem = document.getElementById('current_balance')
+        var transactionsTable = document.getElementById('transactionsTable')
+        var form = new FormData(document.forms.purchaseForm)
+        var xhr = new XMLHttpRequest()
+        xhr.open('POST', '/buy-station')
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === XMLHttpRequest.DONE) {
+            var resp = JSON.parse(xhr.responseText)
+            if (xhr.status == 201) {
+              messageField.style.display = 'block'
+              messageField.style.color = 'green'
+              balanceElem.innerHTML = resp.new_balance
+              messageField.innerHTML = resp.message
+            } else if (xhr.status == 400 || xhr.status == 403) {
+              messageField.style.display = 'block'
+              messageField.style.color = 'red'
+              messageField.innerHTML = resp.message
+            } else {
+              messageField.style.display = 'block'
+              messageField.style.color = 'red'
+              messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
+            }
+          }
+        }
+        xhr.send(form)
+      }
+      function getCode() {
+        event.preventDefault()
+      
+        var messageField = document.getElementById('getCodeField')
+        var form = new FormData(document.forms.getCodeForm)
+        console.log(form.get('squad_id'))
+        var xhr = new XMLHttpRequest()
+        xhr.open('POST', '/get-code')
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === XMLHttpRequest.DONE) {
+            var resp = JSON.parse(xhr.responseText)
+            if (xhr.status == 201) {
+              messageField.style.display = 'block'
+              messageField.style.color = 'green'
+              messageField.innerHTML = resp.message
+            } else if (xhr.status == 400 || xhr.status == 403) {
+              messageField.style.display = 'block'
+              messageField.style.color = 'red'
+              messageField.innerHTML = resp.message
+            } else {
+              messageField.style.display = 'block'
+              messageField.style.color = 'red'
+              messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
+            }
+          }
+        }
+        xhr.send(form)
+      }
+    </script>
+  </head>
+  <body>
+    <h1>{{ user.role.value }} {{ user.squad.number }} состава {{ user.username }}</h1>
+    <h2>Текущий баланс вашего состава: <span id="current_balance">{{ '{:,}'.format(user.squad.wallet.current_balance).replace(',', ' ') }}</span> дружбанов</h2>
+    <h2>Полный баланс: {{ '{:,}'.format(user.squad.get_full_balance()).replace(',', ' ') }} дружбанов (коэффициент за покупку всей линии пока не учитывается)</h2>
+
+    <h2>Покупка станции</h2>
+    <form name="purchaseForm" onsubmit="sendPurchase()">
+      <label for="purchaseStation">Станция:</label>
+      <select name="station_id" id="purchaseStation" required>
+        <option hidden disabled selected value="">выберите</option>
+        {% for station in free_stations %}
+          <option value="{{ station.id }}">{{ station.line.number }} {{ station.name }}</option>
+        {% endfor %}
+      </select>
+      <input type="submit" value="Купить" />
+    </form>
+    <div id="purchaseRequestField"></div>
+
+    <h2>Получение кода для регистрации пассажиров:</h2>
+    <form name="getCodeForm" onsubmit="getCode()">
+      <input type="hidden" name="squad_id" value="{{ user.squad_id }}" />
+      <input type="submit" value="Получить код" />
+    </form>
+    <div id="getCodeField" style="margin-top:15px;"></div>
+
+    <table border="1">
+      <caption>
+        <h2 style="margin-top: 10px;">У вас {{ stations_str }}</h2>
+      </caption>
+      <tr>
+        <th>Линия</th>
+        <th>Название станции</th>
+        <th>Стоимость</th>
+      </tr>
+      {% for station in user.squad.stations %}
+        <tr>
+          <td>{{ station.line.number }}</td>
+          <td>{{ station.name }}</td>
+          <td>{{ '{:,}'.format(station.initial_price).replace(',', ' ') }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+
+    <table border="1" id="transactionsTable">
+      <caption>
+        <h2>Банковские операции</h2>
+      </caption>
+      <tr>
+        <th>Тип</th>
+        <th>Сумма</th>
+        <th>Дата</th>
+        <th>Комментарий</th>
+        <th>Автор</th>
+      </tr>
+      {% for transaction in transactions %}
+        <tr>
+          <td>{{ transaction.type.value }}</td>
+          <td>{{ '{:,}'.format(transaction.amount).replace(',', ' ') }}</td>
+          <td>{{ transaction.timestamp }}</td>
+          <td>{{ transaction.reason }}</td>
+          <td>{{ transaction.made_by.username }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+
+    <a href="/logout"><button style="margin-top: 40px;">Выйти</button></a>
+  </body>
+</html>
