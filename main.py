@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Annotated, Any
 
 import sqlalchemy as sa
@@ -38,6 +38,9 @@ app = FastAPI()  # docs_url=None, redoc_url=None, openapi_url=None
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 pwd_context = CryptContext(schemes=["bcrypt"], bcrypt__rounds=8)
+
+available_after = time(20, 30)
+available_until = time(23, 31)
 
 
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -381,6 +384,14 @@ def buy_station(
 
     if user.role != Roles.COUNSELOR:
         return no_permission
+    current_time = datetime.now().time()
+    if current_time < available_after or current_time > available_until:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "message": f"Покупка станций доступна с {available_after.strftime('%H:%M')} до {available_until.strftime('%H:%M')}."
+            },
+        )
     user_2: Counselor = user  # type: ignore
     station_q = sa.select(Station).filter_by(id=station_id)
     station = db.scalars(station_q).one_or_none()
