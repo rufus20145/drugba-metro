@@ -27,15 +27,12 @@
           if (xhr.readyState === XMLHttpRequest.DONE) {
             var resp = JSON.parse(xhr.responseText)
             if (xhr.status == 201) {
-              messageField.style.display = 'block'
               messageField.style.color = 'green'
               messageField.innerHTML = resp.message
             } else if (xhr.status == 400 || xhr.status == 403) {
-              messageField.style.display = 'block'
               messageField.style.color = 'red'
               messageField.innerHTML = resp.message
             } else {
-              messageField.style.display = 'block'
               messageField.style.color = 'red'
               messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
             }
@@ -55,15 +52,12 @@
           if (xhr.readyState === XMLHttpRequest.DONE) {
             var resp = JSON.parse(xhr.responseText)
             if (xhr.status == 201) {
-              messageField.style.display = 'block'
               messageField.style.color = 'green'
               messageField.innerHTML = resp.message
             } else if (xhr.status == 400 || xhr.status == 403) {
-              messageField.style.display = 'block'
               messageField.style.color = 'red'
               messageField.innerHTML = resp.message
             } else {
-              messageField.style.display = 'block'
               messageField.style.color = 'red'
               messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
             }
@@ -75,9 +69,9 @@
 
     <h2>Обновление балансов:</h2>
     <form name="addBalance" onsubmit="adBalance()">
-      <label for="addSquad">Номер отряда:</label>
+      <label for="addSquad">Номер состава:</label>
       <select name="squad_id" id="addSquad" required>
-        <option hidden disabled selected value="">выберите отряд</option>
+        <option hidden disabled selected value="">выберите</option>
         {% for squad in squads %}
           <option value="{{ squad.id }}">{{ squad.number }}</option>
         {% endfor %}
@@ -103,9 +97,9 @@
     <br />
     <h2>Получение кода для регистрации вожатых:</h2>
     <form name="getCodeForm" onsubmit="getCode()">
-      <label for="squad_id">Отряд:</label>
+      <label for="squad_id">Состав:</label>
       <select name="squad_id" id="squad_id" required>
-        <option hidden disabled selected value="">выберите отряд</option>
+        <option hidden disabled selected value="">выберите</option>
         {% for squad in squads %}
           <option value="{{ squad.id }}">{{ squad.number }}</option>
         {% endfor %}

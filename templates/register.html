@@ -22,7 +22,6 @@
               location.href = '/profile'
             } else if (xhr.status == 400 || xhr.status == 501) {
               var errorField = document.getElementById('errorField')
-              errorField.style.display = 'block'
               errorField.style.color = 'red'
               errorField.innerHTML = JSON.parse(xhr.responseText).message
             }
@@ -64,7 +63,7 @@
       <br />
       <input type="submit" value="Зарегистрироваться" />
     </form>
-    <div id="errorField" style="display: none;"></div>
+    <div id="errorField"></div>
 
     <a href="/login"><button>Войти</button></a>
   </body>
