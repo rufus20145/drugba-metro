@@ -107,6 +107,32 @@
       <input type="submit" value="Получить код" />
     </form>
 
+    <table border="1">
+      <caption>
+        <h2 style="margin-top: 10px;">Исходящие сделки</h2>
+      </caption>
+      <tr>
+        <th>Состав 1</th>
+        <th>Состав 2</th>
+        <th>Спишется у вас</th>
+        <th>Спишется у них</th>
+        <th>Станции вам</th>
+        <th>Станции им</th>
+        <th>Статус</th>
+      </tr>
+      {% for exchange_request in exReqs %}
+        <tr>
+          <td>{{ exchange_request.origin_squad.number }}</td>
+          <td>{{ exchange_request.origin_squad.number }}</td>
+          <td>{{ '{:,}'.format(exchange_request.another_squad_withdraw).replace(',', ' ') }}</td>
+          <td>{{ '{:,}'.format(exchange_request.your_squad_withdraw).replace(',', ' ') }}</td>
+          <td>{{ exchange_request.get_your_squad_stations() }}</td>
+          <td>{{ exchange_request.get_another_squad_stations() }}</td>
+          <td id="status_{{ exchange_request.id }}">{{ exchange_request.status.value }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+
     <div id="getCodeField" style="margin-top:15px;"></div>
     <a href="/logout"><button style="margin-top: 40px;">Выйти</button></a>
   </body>

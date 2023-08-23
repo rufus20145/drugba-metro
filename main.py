@@ -325,9 +325,11 @@ def get_profile_page(request: Request, db: so.Session = Depends(get_db)):
 
     match user.role:
         case Roles.ADMIN | Roles.METHODIST:
+            exReqs_q = sa.select(ExchangeRequest)
+            exReqs = list(db.scalars(exReqs_q))
             return templates.TemplateResponse(
                 "/profile/admin.html",
-                {"request": request, "user": user, "squads": squads},
+                {"request": request, "user": user, "squads": squads, "exReqs": exReqs},
             )
         case Roles.COUNSELOR:
             user_2: Counselor = user  # type: ignore
