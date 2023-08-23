@@ -208,6 +208,30 @@
 
     <table border="1">
       <caption>
+        <h2 style="margin-top: 10px;">Исходящие сделки</h2>
+      </caption>
+      <tr>
+        <th>Состав</th>
+        <th>Спишется у вас</th>
+        <th>Спишется у них</th>
+        <th>Станции вам</th>
+        <th>Станции им</th>
+        <th>Статус</th>
+      </tr>
+      {% for exchange_request in user.squad.outgoing_exchange_requests %}
+        <tr>
+          <td>{{ exchange_request.origin_squad.number }}</td>
+          <td>{{ '{:,}'.format(exchange_request.another_squad_withdraw).replace(',', ' ') }}</td>
+          <td>{{ '{:,}'.format(exchange_request.your_squad_withdraw).replace(',', ' ') }}</td>
+          <td>{{ exchange_request.get_your_squad_stations() }}</td>
+          <td>{{ exchange_request.get_another_squad_stations() }}</td>
+          <td id="status_{{ exchange_request.id }}">{{ exchange_request.status.value }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+
+    <table border="1">
+      <caption>
         <h2 style="margin-top: 10px;">Входящие сделки</h2>
       </caption>
       <tr>
