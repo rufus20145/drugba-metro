@@ -114,10 +114,10 @@
       <tr>
         <th>Состав 1</th>
         <th>Состав 2</th>
-        <th>Спишется у вас</th>
-        <th>Спишется у них</th>
-        <th>Станции вам</th>
-        <th>Станции им</th>
+        <th>Спишется у 1-го</th>
+        <th>Спишется у 2-го</th>
+        <th>Станции 1-му</th>
+        <th>Станции 2-му</th>
         <th>Статус</th>
       </tr>
       {% for exchange_request in exReqs %}
@@ -126,8 +126,8 @@
           <td>{{ exchange_request.another_squad.number }}</td>
           <td>{{ '{:,}'.format(exchange_request.your_squad_withdraw).replace(',', ' ') }}</td>
           <td>{{ '{:,}'.format(exchange_request.another_squad_withdraw).replace(',', ' ') }}</td>
-          <td>{{ exchange_request.get_your_squad_stations() }}</td>
           <td>{{ exchange_request.get_another_squad_stations() }}</td>
+          <td>{{ exchange_request.get_your_squad_stations() }}</td>
           <td id="status_{{ exchange_request.id }}">{{ exchange_request.status.value }}</td>
         </tr>
       {% endfor %}

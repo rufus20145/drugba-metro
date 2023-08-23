@@ -220,11 +220,11 @@
       </tr>
       {% for exchange_request in user.squad.outgoing_exchange_requests %}
         <tr>
-          <td>{{ exchange_request.origin_squad.number }}</td>
-          <td>{{ '{:,}'.format(exchange_request.another_squad_withdraw).replace(',', ' ') }}</td>
+          <td>{{ exchange_request.another_squad.number }}</td>
           <td>{{ '{:,}'.format(exchange_request.your_squad_withdraw).replace(',', ' ') }}</td>
-          <td>{{ exchange_request.get_your_squad_stations() }}</td>
+          <td>{{ '{:,}'.format(exchange_request.another_squad_withdraw).replace(',', ' ') }}</td>
           <td>{{ exchange_request.get_another_squad_stations() }}</td>
+          <td>{{ exchange_request.get_your_squad_stations() }}</td>
           <td id="status_{{ exchange_request.id }}">{{ exchange_request.status.value }}</td>
         </tr>
       {% endfor %}
