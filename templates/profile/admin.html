@@ -109,7 +109,25 @@
 
     <table border="1">
       <caption>
-        <h2 style="margin-top: 10px;">Исходящие сделки</h2>
+        <h2 style="margin-top: 10px;">Балансы</h2>
+      </caption>
+      <tr>
+        <th>Состав</th>
+        <th>Текущий баланс</th>
+        <th>Полный баланс</th>
+      </tr>
+      {% for squad in squads %}
+        <tr>
+          <td>{{ squad.number }}</td>
+          <td>{{ '{:,}'.format(squad.wallet.current_balance).replace(',', ' ') }}</td>
+          <td>{{ '{:,}'.format(squad.get_full_balance()).replace(',', ' ') }}</td>
+        </tr>
+      {% endfor %}
+    </table>
+
+    <table border="1">
+      <caption>
+        <h2 style="margin-top: 10px;">Сделки</h2>
       </caption>
       <tr>
         <th>Состав 1</th>
