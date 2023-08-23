@@ -18,16 +18,13 @@
           if (xhr.readyState === XMLHttpRequest.DONE) {
             var resp = JSON.parse(xhr.responseText)
             if (xhr.status == 201) {
-              messageField.style.display = 'block'
               messageField.style.color = 'green'
               balanceElem.innerHTML = resp.new_balance
               messageField.innerHTML = resp.message
             } else if (xhr.status == 400 || xhr.status == 403) {
-              messageField.style.display = 'block'
               messageField.style.color = 'red'
               messageField.innerHTML = resp.message
             } else {
-              messageField.style.display = 'block'
               messageField.style.color = 'red'
               messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
             }
@@ -47,21 +44,101 @@
           if (xhr.readyState === XMLHttpRequest.DONE) {
             var resp = JSON.parse(xhr.responseText)
             if (xhr.status == 201) {
-              messageField.style.display = 'block'
               messageField.style.color = 'green'
               messageField.innerHTML = resp.message
             } else if (xhr.status == 400 || xhr.status == 403) {
-              messageField.style.display = 'block'
               messageField.style.color = 'red'
               messageField.innerHTML = resp.message
             } else {
-              messageField.style.display = 'block'
               messageField.style.color = 'red'
               messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
             }
           }
         }
         xhr.send(form)
+      }
+      
+      function getSquadInfo() {
+        event.preventDefault()
+      
+        var selectedSquadId = document.getElementById('another_squad').value
+        var selectElement = document.getElementById('anotherStations')
+      
+        var xhr = new XMLHttpRequest()
+        xhr.open('POST', '/get-squad-info')
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded')
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === XMLHttpRequest.DONE) {
+            var response = JSON.parse(xhr.responseText)
+            if (xhr.status === 200) {
+              var station_strings = response.station_strings // Assuming the server sends the list of strings as "station_strings"
+              var station_ids = response.station_ids // Assuming the server sends the array of station_ids as "station_ids"
+      
+              selectElement.innerHTML = '' // Clear previous options
+      
+              for (var i = 0; i < station_strings.length; i++) {
+                var option = document.createElement('option')
+                option.value = station_ids[i]
+                option.textContent = station_strings[i]
+                selectElement.appendChild(option)
+              }
+            } else {
+              squadInfoField.innerHTML = 'Error getting squad info'
+            }
+          }
+        }
+      
+        var params = 'squad_id=' + encodeURIComponent(selectedSquadId)
+        xhr.send(params)
+      }
+      function exchangeRequest() {
+        event.preventDefault()
+      
+        var messageField = document.getElementById('exchangeRequestField')
+        var form = new FormData(document.forms.exchangeForm)
+        var xhr = new XMLHttpRequest()
+        xhr.open('POST', '/exchange')
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === XMLHttpRequest.DONE) {
+            var resp = JSON.parse(xhr.responseText)
+            if (xhr.status == 201) {
+              messageField.style.color = 'green'
+              messageField.innerHTML = resp.message
+            } else if (xhr.status == 400 || xhr.status == 403) {
+              messageField.style.color = 'red'
+              messageField.innerHTML = resp.message
+            } else {
+              messageField.style.color = 'red'
+              messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
+            }
+          }
+        }
+        xhr.send(form)
+      }
+      function acceptExchangeRequest(requestId) {
+        var messageField = document.getElementById('exchangeAcceptField')
+        var statusElem = document.getElementById('status' + requestId)
+        var xhr = new XMLHttpRequest()
+        xhr.open('POST', '/accept-exchange')
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded')
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === XMLHttpRequest.DONE) {
+            var resp = JSON.parse(xhr.responseText)
+            if (xhr.status == 200) {
+              messageField.style.color = 'green'
+              messageField.innerHTML = resp.message
+              statusElem.innerHTML = 'Выполнена'
+            } else if (xhr.status == 400 || xhr.status == 403 || xhr.status == 501) {
+              messageField.style.color = 'red'
+              messageField.innerHTML = resp.message
+            } else {
+              messageField.style.color = 'red'
+              messageField.innerHTML = 'Неизвестная ошибка, обратитесь к администратору'
+            }
+          }
+        }
+        var data = 'request_id=' + encodeURIComponent(requestId)
+        xhr.send(data)
       }
     </script>
   </head>
@@ -89,6 +166,75 @@
       <input type="submit" value="Получить код" />
     </form>
     <div id="getCodeField" style="margin-top:15px;"></div>
+
+    <h2>Сделка с другим составом</h2>
+    <form name="exchangeForm" onsubmit="exchangeRequest()">
+      <div class="form-field">
+        <label for="yourStations">Выберите станции, которые хотите отдать:</label>
+        <select name="your_squad_station_ids" id="yourStations" multiple>
+          <option hidden disabled selected value="">выберите станции</option>
+          {% for station in user.squad.stations %}
+            <option value="{{ station.id }}">{{ station.line.number }} {{ station.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="another_squad">выберите состав, с которым хотите провести сделку</label>
+        <select name="another_squad_id" id="another_squad" required onchange="getSquadInfo()">
+          <option hidden disabled selected value="">выберите</option>
+          {% for squad in squads %}
+            <option value="{{ squad.id }}">{{ squad.number }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-field">
+        <label for="anotherStations">Выберите станции другого состава</label>
+        <select name="another_squad_station_ids" id="anotherStations" multiple></select>
+      </div>
+      <div class="form-field">
+        <label for="your_withdraw">Сколько спишется у вас:</label>
+        <input type="number" name="your_squad_withdraw" id="your_withdraw" min="0" value="0" step="1000" />
+      </div>
+
+      <div class="">
+        <label for="another_squad_withdraw">Сколько спишется у другого состава:</label>
+        <input type="number" name="another_squad_withdraw" id="another_squad_withdraw" min="0" value="0" step="1000" />
+      </div>
+
+      <input type="submit" value="Отправить заявку" />
+    </form>
+
+    <div id="exchangeRequestField"></div>
+
+    <table border="1">
+      <caption>
+        <h2 style="margin-top: 10px;">Входящие сделки</h2>
+      </caption>
+      <tr>
+        <th>Состав</th>
+        <th>Спишется у вас</th>
+        <th>Спишется у них</th>
+        <th>Станции вам</th>
+        <th>Станции им</th>
+        <th>Статус</th>
+        <th>Действие</th>
+      </tr>
+      {% for exchange_request in user.squad.incoming_exchange_requests %}
+        <tr>
+          <td>{{ exchange_request.origin_squad.number }}</td>
+          <td>{{ '{:,}'.format(exchange_request.another_squad_withdraw).replace(',', ' ') }}</td>
+          <td>{{ '{:,}'.format(exchange_request.your_squad_withdraw).replace(',', ' ') }}</td>
+          <td>{{ exchange_request.get_your_squad_stations() }}</td>
+          <td>{{ exchange_request.get_another_squad_stations() }}</td>
+          <td id="status_{{ exchange_request.id }}">{{ exchange_request.status.value }}</td>
+          <td>
+            <button onclick="acceptExchangeRequest({{ exchange_request.id }})">Принять</button>
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+
+    <div id="exchangeAcceptField"></div>
 
     <table border="1">
       <caption>

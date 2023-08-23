@@ -108,8 +108,7 @@ class Withdrawal(Transaction):
 
 class RequestType(PythonEnum):
     STATION_PURCHASE = "Покупка станции"
-    MONEY_TRANSFER = "Перевод денег"
-    STATION_RESELL = "Перепродажа станции"
+    EXCHANGE = "Сделка"
 
 
 class RequestStatus(PythonEnum):
@@ -132,17 +131,13 @@ class SquadRequest(Base):
         nullable=False,
     )
     type: Mapped[RequestType] = mapped_column(Enum(RequestType))
-    squad_id: Mapped[int] = mapped_column(ForeignKey("squads.id"), nullable=False)
-    squad: Mapped["Squad"] = relationship(back_populates="purchase_requests")
+    origin_squad_id: Mapped[int] = mapped_column(ForeignKey("squads.id"))
+    origin_squad: Mapped["Squad"] = relationship()
 
-    def __init__(
-        self,
-        squad: "Squad",
-        type: RequestType,
-    ):
+    def __init__(self, origin_squad: "Squad", type: RequestType):
         self.timestamp = dt.datetime.now()
         self.status = RequestStatus.CREATED
-        self.squad = squad
+        self.origin_squad = origin_squad
         self.type = type
 
 
@@ -154,6 +149,77 @@ class PurchaseStationRequest(SquadRequest):
     station_id: Mapped[int] = mapped_column(ForeignKey("stations.id"), nullable=False)
     station: Mapped["Station"] = relationship()
 
-    def __init__(self, squad: "Squad", station: "Station"):
-        super().__init__(squad, RequestType.STATION_PURCHASE)
+    def __init__(self, origin_squad: "Squad", station: "Station"):
+        super().__init__(origin_squad, RequestType.STATION_PURCHASE)
         self.station = station
+
+
+class ExchangeRequest(SquadRequest):
+    __tablename__ = "exchange_requests"
+    __mapper_args__ = {"polymorphic_identity": RequestType.EXCHANGE}
+
+    id: Mapped[int] = mapped_column(ForeignKey("requests.id"), primary_key=True)
+    another_squad_id: Mapped[int] = mapped_column(
+        ForeignKey("squads.id"), nullable=False
+    )
+    another_squad: Mapped["Squad"] = relationship(
+        back_populates="incoming_exchange_requests"
+    )
+    origin_squad_stations: Mapped[list["OriginExchangeStations"]] = relationship(
+        back_populates=""
+    )
+    another_squad_stations: Mapped[list["AnotherExchangeStations"]] = relationship(
+        back_populates=""
+    )
+    your_squad_withdraw: Mapped[int] = mapped_column(Integer, nullable=True)
+    another_squad_withdraw: Mapped[int] = mapped_column(Integer, nullable=True)
+
+    def __init__(
+        self,
+        squad: "Squad",
+        another_squad: "Squad",
+        your_squad_station_ids: List[int],
+        your_squad_withdraw: int,
+        another_squad_station_ids: List[int],
+        another_squad_withdraw: int,
+    ):
+        super().__init__(squad, RequestType.EXCHANGE)
+        self.another_squad = another_squad
+        self.your_squad_withdraw = your_squad_withdraw
+        if your_squad_station_ids:
+            self.origin_squad_stations = [
+                OriginExchangeStations(station_id=station_id)
+                for station_id in your_squad_station_ids
+            ]
+        if another_squad_station_ids:
+            self.another_squad_stations = [
+                AnotherExchangeStations(station_id=station_id)
+                for station_id in another_squad_station_ids
+            ]
+        self.another_squad_withdraw = another_squad_withdraw
+
+    def get_your_squad_stations(self) -> str:
+        return ", ".join(station.station.name for station in self.origin_squad_stations)
+
+    def get_another_squad_stations(self) -> str:
+        return ", ".join(
+            station.station.name for station in self.another_squad_stations
+        )
+
+
+class OriginExchangeStations(Base):
+    __tablename__ = "exchange_stations_origin"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_id: Mapped[int] = mapped_column(ForeignKey("exchange_requests.id"))
+    station_id: Mapped[int] = mapped_column(ForeignKey("stations.id"), nullable=False)
+    station: Mapped["Station"] = relationship()
+
+
+class AnotherExchangeStations(Base):
+    __tablename__ = "exchange_stations_another"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    request_id: Mapped[int] = mapped_column(ForeignKey("exchange_requests.id"))
+    station_id: Mapped[int] = mapped_column(ForeignKey("stations.id"), nullable=False)
+    station: Mapped["Station"] = relationship()

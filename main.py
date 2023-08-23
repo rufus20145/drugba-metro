@@ -15,7 +15,15 @@ from passlib.context import CryptContext
 from models.base import Base
 from models.camp import Squad
 from models.metro import Line, Station
-from models.money import Deposit, Transaction, TransactionStatus, Wallet, Withdrawal
+from models.money import (
+    Deposit,
+    ExchangeRequest,
+    RequestStatus,
+    Transaction,
+    TransactionStatus,
+    Wallet,
+    Withdrawal,
+)
 from models.users import Camper, Counselor, RegisterCode, Roles, Token, User
 
 url = os.getenv("DATABASE_URL")
@@ -194,14 +202,14 @@ def get_register_page(request: Request, db: so.Session = Depends(get_db)):
             if user:
                 return RedirectResponse("/profile", status_code=status.HTTP_302_FOUND)
 
-        roles = [Roles.COUNSELOR, Roles.CAMPER]
-        squads_q = sa.select(Squad)
-        squads = list(db.scalars(squads_q))
-        response = templates.TemplateResponse(
-            "register.html", {"request": request, "roles": roles, "squads": squads}
-        )
-        response.delete_cookie("token")
-        return response
+    roles = [Roles.COUNSELOR, Roles.CAMPER]
+    squads_q = sa.select(Squad)
+    squads = list(db.scalars(squads_q))
+    response = templates.TemplateResponse(
+        "register.html", {"request": request, "roles": roles, "squads": squads}
+    )
+    response.delete_cookie("token")
+    return response
 
 
 @app.post(path="/register", response_class=JSONResponse)
@@ -312,10 +320,11 @@ def get_profile_page(request: Request, db: so.Session = Depends(get_db)):
     if not user:
         return login_redirect
 
+    squads_q = sa.select(Squad)
+    squads = list(db.scalars(squads_q))
+
     match user.role:
         case Roles.ADMIN | Roles.METHODIST:
-            squads_q = sa.select(Squad)
-            squads = list(db.scalars(squads_q))
             return templates.TemplateResponse(
                 "/profile/admin.html",
                 {"request": request, "user": user, "squads": squads},
@@ -323,6 +332,7 @@ def get_profile_page(request: Request, db: so.Session = Depends(get_db)):
         case Roles.COUNSELOR:
             user_2: Counselor = user  # type: ignore
             stations_str: str = get_stations_str(len(user_2.squad.stations))
+            squads.remove(user_2.squad)
 
             free_stations_q = sa.select(Station).filter_by(owner_id=None)
             free_stations = list(db.scalars(free_stations_q))
@@ -340,6 +350,7 @@ def get_profile_page(request: Request, db: so.Session = Depends(get_db)):
                     "stations_str": stations_str,
                     "free_stations": free_stations,
                     "transactions": transactions,
+                    "squads": squads,
                 },
             )
         case Roles.CAMPER:
@@ -488,6 +499,211 @@ def get_code(
         content={
             "message": f"Код для регистрации в {target_squad.number} составе — {reg_code.code}."
         },
+    )
+
+
+@app.post(path="/get-squad-info", response_class=JSONResponse, status_code=201)
+def get_squad_information(
+    request: Request,
+    squad_id: Annotated[int, Form()],
+    db: so.Session = Depends(get_db),
+):
+    no_permission = JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN, content={"message": "No permission"}
+    )
+    token_str = request.cookies.get("token")
+    if not token_str:
+        return no_permission
+    token = parse_token(token_str)
+    if not token:
+        return no_permission
+    if not token.is_valid():
+        return no_permission
+
+    user_q = sa.select(User).filter_by(username=token.username)
+    user = db.scalars(user_q).one_or_none()
+    if not user:
+        return no_permission
+    if user.role != Roles.COUNSELOR:
+        return no_permission
+
+    squad_q = sa.select(Squad).filter_by(id=squad_id)
+    squad = db.scalars(squad_q).one_or_none()
+    if not squad:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"message": "Состава с таким номером не найдено"},
+        )
+
+    station_ids: list[int] = []
+    station_strings: list[str] = []
+    for station in squad.stations:
+        station_strings.append(f"{station.line.number} {station.name}")
+        station_ids.append(station.id)
+
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={"station_strings": station_strings, "station_ids": station_ids},
+    )
+
+
+@app.post(path="/exchange", response_class=JSONResponse)
+def exchange(
+    request: Request,
+    another_squad_id: Annotated[int, Form()],
+    your_squad_station_ids: Annotated[list[int], Form()] = [],
+    your_squad_withdraw: Annotated[int, Form()] = 0,
+    another_squad_station_ids: Annotated[list[int], Form()] = [],
+    another_squad_withdraw: Annotated[int, Form()] = 0,
+    db: so.Session = Depends(get_db),
+):
+    no_permission = JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN, content={"message": "No permission"}
+    )
+    token_str = request.cookies.get("token")
+    if not token_str:
+        return no_permission
+    token = parse_token(token_str)
+    if not token:
+        return no_permission
+    if not token.is_valid():
+        return no_permission
+
+    user_q = sa.select(User).filter_by(username=token.username)
+    user = db.scalars(user_q).one_or_none()
+    if not user:
+        return no_permission
+    if user.role != Roles.COUNSELOR:
+        return no_permission
+
+    if (
+        not your_squad_station_ids
+        and not another_squad_station_ids
+        and not your_squad_withdraw
+        and not another_squad_withdraw
+    ):
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"message": "Зачем отправлять пустой запрос?"},
+        )
+
+    another_squad_q = sa.select(Squad).filter_by(id=another_squad_id)
+    another_squad = db.scalars(another_squad_q).one_or_none()
+    if not another_squad:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"message": "Состава с таким номером не найдено"},
+        )
+
+    user_2: Counselor = user  # type: ignore
+    exReq = ExchangeRequest(
+        squad=user_2.squad,
+        another_squad=another_squad,
+        your_squad_station_ids=your_squad_station_ids,
+        your_squad_withdraw=your_squad_withdraw,
+        another_squad_station_ids=another_squad_station_ids,
+        another_squad_withdraw=another_squad_withdraw,
+    )
+    db.add(exReq)
+    db.commit()
+    return JSONResponse(
+        status_code=status.HTTP_201_CREATED,
+        content={"message": "Заявка создана, теперь другой состав должен её принять"},
+    )
+
+
+@app.post(path="/accept-exchange")
+def accept_exchange_request(
+    request: Request,
+    request_id: Annotated[int, Form()],
+    db: so.Session = Depends(get_db),
+):
+    no_permission = JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN, content={"message": "No permission"}
+    )
+    token_str = request.cookies.get("token")
+    if not token_str:
+        return no_permission
+    token = parse_token(token_str)
+    if not token:
+        return no_permission
+    if not token.is_valid():
+        return no_permission
+
+    user_q = sa.select(User).filter_by(username=token.username)
+    user = db.scalars(user_q).one_or_none()
+    if not user:
+        return no_permission
+    if user.role != Roles.COUNSELOR:
+        return no_permission
+    user_2: Counselor = user  # type: ignore
+
+    exReq_q = sa.select(ExchangeRequest).filter_by(id=request_id)
+    exReq = db.scalars(exReq_q).one_or_none()
+    if not exReq:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"message": "Заявка не найдена"},
+        )
+    if exReq.another_squad != user_2.squad:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"message": "Вы не можете принять заявку другого состава"},
+        )
+    if exReq.status != RequestStatus.CREATED:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"message": "Заявка уже принята"},
+        )
+    try:
+        if exReq.another_squad_withdraw > 0:
+            withdrawal = Withdrawal(
+                wallet=exReq.another_squad.wallet,
+                amount=exReq.another_squad_withdraw,
+                reason=f"Сделка с составом {exReq.another_squad.number}",
+                made_by=user_2,
+            )
+            db.add(withdrawal)
+            withdrawal.execute()
+            deposit = Deposit(
+                wallet=exReq.origin_squad.wallet,
+                amount=exReq.another_squad_withdraw,
+                reason=f"Сделка с составом {exReq.another_squad.number}",
+                made_by=user_2,
+            )
+            db.add(deposit)
+            deposit.execute()
+        if exReq.your_squad_withdraw > 0:
+            withdrawal = Withdrawal(
+                wallet=exReq.origin_squad.wallet,
+                amount=exReq.your_squad_withdraw,
+                reason=f"Сделка с составом {exReq.origin_squad.number}",
+                made_by=user_2,
+            )
+            db.add(withdrawal)
+            withdrawal.execute()
+            deposit = Deposit(
+                wallet=exReq.another_squad.wallet,
+                amount=exReq.your_squad_withdraw,
+                reason=f"Сделка с составом {exReq.origin_squad.number}",
+                made_by=user_2,
+            )
+            db.add(deposit)
+            deposit.execute()
+        for station in exReq.origin_squad_stations:
+            station.station.owner = exReq.another_squad
+        for station in exReq.another_squad_stations:
+            station.station.owner = exReq.origin_squad
+        exReq.status = RequestStatus.APPROVED
+        db.commit()
+    except ValueError as e:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"message": str(e)},
+        )
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={"message": "Заявка принята"},
     )
 
 
