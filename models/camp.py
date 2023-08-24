@@ -48,7 +48,7 @@ class Squad(Base):
         self.name = name
         self.age_group = age_group
 
-    def get_all_lines(self) -> list[Line]:
+    def get_all_lines(self) -> list["Line"]:
         lines = []
         for station in self.stations:
             if station.line and station.line not in lines:
