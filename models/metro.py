@@ -37,7 +37,7 @@ class Line(Base):
 
     def get_sum_of_stations_by_squad(self, squad: "Squad") -> int:
         sum = 0
-        for station in squad.stations:
+        for station in self.stations:
             if station.owner == squad:
                 sum += station.initial_price
         if self.is_owned_by_one_squad():
