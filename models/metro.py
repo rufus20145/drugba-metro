@@ -38,15 +38,16 @@ class Line(Base):
     def get_sum_of_stations_by_squad(self, squad: "Squad") -> int:
         sum = 0
         for station in squad.stations:
-            sum += station.initial_price if station.owner == squad else 0
+            if station.owner == squad:
+                sum += station.initial_price
         if self.is_owned_by_one_squad():
-            sum = sum * math.floor(self.full_line_coef)
+            print(f"all line {self.name} is owned by {squad.number}")
+            sum = math.floor(sum * self.full_line_coef)
         return sum
 
     def get_number_of_stations_owned_by_squads(self) -> dict[int, int]:
         result: dict[int, int] = {}
         for station in self.stations:
-            
             if station.owner:
                 if station not in result:
                     result[station.owner.number] = 0
@@ -57,8 +58,17 @@ class Line(Base):
     def get_number_of_station_owners(self) -> int:
         return len(self.get_number_of_stations_owned_by_squads())
 
+    def is_all_stations_bought(self) -> bool:
+        for station in self.stations:
+            if station.owner is None:
+                return False
+        return True
+
     def is_owned_by_one_squad(self) -> bool:
-        return len(self.get_number_of_stations_owned_by_squads()) == 1
+        return (
+            self.is_all_stations_bought()
+            and len(self.get_number_of_stations_owned_by_squads()) == 1
+        )
 
 
 class Station(Base):
