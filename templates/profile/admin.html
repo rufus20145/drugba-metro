@@ -115,12 +115,14 @@
         <th>Состав</th>
         <th>Текущий баланс</th>
         <th>Полный баланс</th>
+        <th>Количество станций</th>
       </tr>
       {% for squad in squads %}
         <tr>
           <td>{{ squad.number }}</td>
           <td>{{ '{:,}'.format(squad.wallet.current_balance).replace(',', ' ') }}</td>
           <td>{{ '{:,}'.format(squad.get_full_balance()).replace(',', ' ') }}</td>
+          <td>{{ squad.stations|length }}</td>
         </tr>
       {% endfor %}
     </table>
