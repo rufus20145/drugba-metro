@@ -1,3 +1,4 @@
+import math
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import ForeignKey, Integer, String
@@ -33,6 +34,31 @@ class Line(Base):
         self.full_line_coef = full_line_coef
         if short_name:
             self.short_name = short_name
+
+    def get_sum_of_stations_by_squad(self, squad: "Squad") -> int:
+        sum = 0
+        for station in squad.stations:
+            sum += station.initial_price if station.owner == squad else 0
+        if self.is_owned_by_one_squad():
+            sum = sum * math.floor(self.full_line_coef)
+        return sum
+
+    def get_number_of_stations_owned_by_squads(self) -> dict[int, int]:
+        result: dict[int, int] = {}
+        for station in self.stations:
+            
+            if station.owner:
+                if station not in result:
+                    result[station.owner.number] = 0
+                else:
+                    result[station.owner.number] += 1
+        return result
+
+    def get_number_of_station_owners(self) -> int:
+        return len(self.get_number_of_stations_owned_by_squads())
+
+    def is_owned_by_one_squad(self) -> bool:
+        return len(self.get_number_of_stations_owned_by_squads()) == 1
 
 
 class Station(Base):

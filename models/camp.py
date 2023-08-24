@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from models.base import Base
 
 if TYPE_CHECKING:
-    from models.metro import Station
+    from models.metro import Line, Station
     from models.money import ExchangeRequest, Wallet
     from models.users import Camper, Counselor, Methodist
 
@@ -48,7 +48,15 @@ class Squad(Base):
         self.name = name
         self.age_group = age_group
 
+    def get_all_lines(self) -> list[Line]:
+        lines = []
+        for station in self.stations:
+            if station.line and station.line not in lines:
+                lines.append(station.line)
+        return lines
+
     def get_full_balance(self):
-        return self.wallet.current_balance + sum(
-            station.initial_price for station in self.stations
-        )
+        sum_of_stations = 0
+        for line in self.get_all_lines():
+            sum_of_stations += line.get_sum_of_stations_by_squad(self)
+        return sum_of_stations + self.wallet.current_balance
